@@ -85,6 +85,50 @@ inline Position parsePosition(const std::string& info) {
     return p;
 }
 
+// Mic-E: the compact format of most APRS radios (Kenwood, Yaesu) and many
+// trackers. Latitude and some flags are hidden in the destination "callsign",
+// longitude, speed and course in the first bytes of the information field.
+inline Position parseMicE(const std::string& dst, const std::string& info) {
+    Position p;
+    if (info.size() < 9 || (info[0] != '`' && info[0] != '\'' && info[0] != 0x1c && info[0] != 0x1d)) return p;
+    std::string d = dst.substr(0, dst.find('-'));
+    if (d.size() != 6) return p;
+    int digits[6];
+    bool south = false, plus100 = false, west = false;
+    for (int i = 0; i < 6; i++) {
+        char c = d[(size_t)i];
+        bool high;                                  // 'P'-'Z': north / +100 / west
+        if (c >= '0' && c <= '9') { digits[i] = c - '0'; high = false; }
+        else if (c >= 'A' && c <= 'J') { digits[i] = c - 'A'; high = false; }
+        else if (c == 'K' || c == 'L') { digits[i] = 0; high = false; }
+        else if (c >= 'P' && c <= 'Y') { digits[i] = c - 'P'; high = true; }
+        else if (c == 'Z') { digits[i] = 0; high = true; }
+        else return p;
+        if (i == 3) south = !high;
+        if (i == 4) plus100 = high;
+        if (i == 5) west = high;
+    }
+    double lat = digits[0] * 10 + digits[1] + (digits[2] * 10 + digits[3] + (digits[4] * 10 + digits[5]) / 100.0) / 60.0;
+    int deg = (unsigned char)info[1] - 28 + (plus100 ? 100 : 0);
+    if (deg >= 180 && deg <= 189) deg -= 80;
+    else if (deg >= 190 && deg <= 199) deg -= 190;
+    int min = (unsigned char)info[2] - 28;
+    if (min >= 60) min -= 60;
+    int hundredths = (unsigned char)info[3] - 28;
+    if (deg < 0 || deg > 179 || min < 0 || min > 59 || hundredths < 0 || hundredths > 99 || lat > 90) return p;
+    double lon = deg + (min + hundredths / 100.0) / 60.0;
+    p.lat = south ? -lat : lat;
+    p.lon = west ? -lon : lon;
+    p.symbol = info[7];
+    p.symbolTable = info[8];
+    p.comment = info.substr(9);
+    // An altitude "xyz}" (base 91) may open the comment, after an optional type byte.
+    for (size_t at : {(size_t)0, (size_t)1})
+        if (p.comment.size() >= at + 4 && p.comment[at + 3] == '}') { p.comment.erase(0, at + 4); break; }
+    p.valid = true;
+    return p;
+}
+
 struct Message {
     bool valid = false;
     std::string to, text, id;   // id: message number to acknowledge, may be empty

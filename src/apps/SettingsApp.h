@@ -4,6 +4,7 @@
 #include "core/App.h"
 #include "core/AprsIs.h"
 #include "core/Config.h"
+#include "core/LoraAprs.h"
 #include "core/Mesh.h"
 #include "core/Rig.h"
 #include "core/Net.h"
@@ -37,7 +38,7 @@ public:
                 else config::set(f.key, input_.value);
                 status_ = config::save() ? "Saved" : "No SD card: not saved";
                 if (f.apply & WIFI) net::begin();
-                if (f.apply & MESH) mesh::begin();
+                if (f.apply & MESH) { mesh::begin(); loraaprs::begin(); }
                 if (f.apply & APRS) aprsis::begin();
                 if (f.apply & RIG) rig::begin();
                 if (f.apply & FT8) wsjtxlink::begin();
@@ -97,6 +98,7 @@ private:
             {"wifi_pass", "WiFi password", "", 63, false, true, WIFI},
             {"web_on", "Web UI (0/1)", "0", 1, false, false, NONE},
             {"web_pass", "Web UI password", "", 32, false, true, NONE},
+            {"lora_mode", "LoRa mode mesh/aprs", "mesh", 4, false, false, MESH},
             {"mesh_on", "Mesh (0/1)", "1", 1, false, false, MESH},
             {"mesh_region", "Mesh region", "EU_868", 8, true, false, MESH},
             {"mesh_preset", "Mesh preset", "LongFast", 12, false, false, MESH},
@@ -107,6 +109,9 @@ private:
             {"mesh_pos", "Share position 0/1", "0", 1, false, false, NONE},
             {"mesh_beep", "Message beep 0/1", "1", 1, false, false, NONE},
             {"lora_power", "LoRa power dBm", "22", 3, false, false, MESH},
+            {"lora_aprs_freq", "LoRa-APRS MHz", "433.775", 8, false, false, MESH},
+            {"lora_aprs_beacon", "LoRa beacon min", "0", 3, false, false, NONE},
+            {"lora_igate", "LoRa iGate 0/1", "0", 1, false, false, NONE},
             {"aprs_on", "APRS-IS (0/1)", "0", 1, false, false, APRS},
             {"aprs_ssid", "APRS SSID", "7", 2, false, false, APRS},
             {"aprs_range", "APRS range km", "50", 4, false, false, APRS},

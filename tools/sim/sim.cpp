@@ -6,6 +6,7 @@
 #include <RadioLib.h>
 #include <WiFiUdp.h>
 #include "core/Log.h"
+#include "core/LoraAprs.h"
 #include "lib/Aprs.h"
 #include "lib/Ft8.h"
 #include "lib/Ft8Decoder.h"
@@ -359,10 +360,50 @@ int main() {
         hear(ax25::modulate(frame), 0.15, 300);
         EXPECT(aprsis::stations().size() == 6);
         bool radio = false;
-        for (const auto& st : aprsis::stations()) radio |= st.call == "TA3KM-9" && st.viaRadio;
+        for (const auto& st : aprsis::stations()) radio |= st.call == "TA3KM-9" && st.source == aprsis::AUDIO;
         EXPECT(radio);
     }
     shot("aprs-modem");
+
+    // ---- LoRa-APRS on 433.775 MHz: the radio switches over from Meshtastic ----
+    {
+        config::set("lora_mode", "aprs");
+        config::set("lora_igate", "1");
+        mesh::begin();
+        loraaprs::begin();
+        EXPECT(loraaprs::ready() && !mesh::ready());
+        size_t before = sim_lora_sent.size();
+        std::string sentBefore = sim_net_sent[kAprsHost];
+        sim_lora_inject(std::string("<\xff\x01") + "TA3LOR-7>APLRT1,WIDE1-1:!3826.00N/02712.00E>LoRa tracker");
+        run(100);
+        sim_lora_inject("TA3MIC-9>S32U6T,WIDE1-1:`(_fn\"Oj/]Mic-E radio");                 // no header, Mic-E
+        run(100);
+        bool lora = false, mice = false;
+        for (const auto& st : aprsis::stations()) {
+            lora |= st.call == "TA3LOR-7" && st.source == aprsis::LORA;
+            mice |= st.call == "TA3MIC-9" && std::fabs(st.lat - 33.42733) < 1e-3;
+        }
+        EXPECT(lora && mice);
+        // receive-only iGate: forwarded to APRS-IS with qAR and our call
+        EXPECT(sim_net_sent[kAprsHost].substr(sentBefore.size()).find(
+                   "TA3LOR-7>APLRT1,WIDE1-1,qAR,TA3BLD-7:!3826.00N/02712.00E>LoRa tracker\r\n") != std::string::npos);
+        tab();                                 // modem page -> station page
+        key('b');
+        run(2000);
+        EXPECT(sim_lora_sent.size() == before + 1 &&
+               sim_lora_sent.back() == std::string("<\xff\x01") + "TA3BLD-7>APZHAM,WIDE1-1:!3825.42N/02708.57E[HamOS");
+        // A message for us over LoRa is acknowledged over LoRa.
+        sim_lora_inject(std::string("<\xff\x01") + "TA3LOR-7>APLRT1,WIDE1-1::TA3BLD-7 :Duyuyor musun?{42");
+        run(3000);
+        EXPECT(sim_lora_sent.back() == std::string("<\xff\x01") + "TA3BLD-7>APZHAM,WIDE1-1::TA3LOR-7 :ack42");
+        shot("aprs-lora");
+        config::set("lora_mode", "mesh");
+        config::erase("lora_igate");
+        loraaprs::begin();
+        mesh::begin();
+        EXPECT(mesh::ready() && !loraaprs::ready());
+        tab(); tab();                          // on to the modem page again
+    }
     sim_speaker.clear();
     key('b');                                  // beacon through the speaker
     run(200);

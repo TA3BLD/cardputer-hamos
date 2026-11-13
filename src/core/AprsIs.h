@@ -8,12 +8,15 @@
 
 namespace aprsis {
 
+enum Source { INTERNET, AUDIO, LORA };
+
 struct Station {
     std::string call, comment;
     double lat = 0, lon = 0;
-    char symbol = ' ';
+    char symbolTable = '/', symbol = ' ';
     uint32_t lastHeardMs = 0;
-    bool viaRadio = false;      // decoded from audio rather than received from the internet
+    Source source = INTERNET;   // how it was last heard
+    bool viaRadio() const { return source != INTERNET; }
 };
 
 struct Message {
@@ -33,9 +36,14 @@ const std::vector<Message>& messages();
 int unread();
 void markRead();
 
+// Messages and beacons go out over LoRa when LoRa-APRS is running, otherwise
+// over the internet.
 bool sendMessage(const std::string& to, const std::string& text, std::string& error);
 bool sendBeacon(std::string& error);
 std::string beaconPacket(const std::string& path);      // "" without a position
-void ingest(const std::string& tnc2, bool viaRadio);
+void ingest(const std::string& tnc2, Source source);
+bool canSend();                 // online or LoRa-APRS ready
+// Forwards a packet heard on the radio to APRS-IS (receive-only iGate).
+void gate(const std::string& tnc2);
 
 }  // namespace aprsis

@@ -40,6 +40,22 @@ int main() {
     pos = aprs::parsePosition(aprs::formatPosition(-33.8688, -70.6693, '/', '-', ""));
     CHECK(pos.valid && near(pos.lat, -33.8688, 1e-3) && near(pos.lon, -70.6693, 1e-3));
 
+    // Mic-E, expected values from the Python aprslib package
+    struct { const char* dst; const char* info; double lat, lon; char table, symbol; } mice[] = {
+        {"S32U6T", "`(_fn\"Oj/]Mobile", 33.42733, -12.12900, '/', 'j'},
+        {"T4SQTU", "`{_+l -k/`\"4G}_%", 44.52417, -5.11917, '/', 'k'},
+        {"SV2SWV", "`|O0l\"[>/'\"3x}|!&'H|", 36.39600, -6.85333, '/', '>'},
+        {"UPSTWT", "'4Rcl!M>/]\"4M}", 50.57900, -124.91183, '/', '>'},
+    };
+    for (const auto& t : mice) {
+        aprs::Position mp = aprs::parseMicE(t.dst, t.info);
+        bool ok = mp.valid && near(mp.lat, t.lat, 1e-4) && near(mp.lon, t.lon, 1e-4) && mp.symbolTable == t.table && mp.symbol == t.symbol;
+        if (!ok) printf("  Mic-E %s: %d %.5f %.5f %c%c\n", t.dst, mp.valid, mp.lat, mp.lon, mp.symbolTable, mp.symbol);
+        CHECK(ok);
+    }
+    CHECK(!aprs::parseMicE("APRS", "`(_fn\"Oj/").valid && !aprs::parseMicE("S32U6T", "`(_").valid && !aprs::parseMicE("S3!U6T", "`(_fn\"Oj/").valid);
+    CHECK(aprs::parseMicE("S32U6T-2", "`(_fn\"Oj/]Mobile").comment == "]Mobile");
+
     aprs::Message m = aprs::parseMessage(":TA3BLD   :hello there{12");
     CHECK(m.valid && m.to == "TA3BLD" && m.text == "hello there" && m.id == "12" && !m.isAck);
     m = aprs::parseMessage(":TA3BLD-7 :ack12");

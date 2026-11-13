@@ -6,6 +6,7 @@
 #include "core/App.h"
 #include "core/AprsIs.h"
 #include "core/Audio.h"
+#include "core/LoraAprs.h"
 #include "core/Station.h"
 #include "core/Ui.h"
 #include "lib/Ax25.h"
@@ -37,7 +38,7 @@ public:
         } else if (page_ == STATIONS) {
             if (k.ch == 'b' || k.ch == 'B') {
                 std::string error;
-                status_ = aprsis::sendBeacon(error) ? "Position sent to APRS-IS" : error;
+                status_ = aprsis::sendBeacon(error) ? (loraaprs::ready() ? "Position sent on LoRa" : "Position sent to APRS-IS") : error;
             } else if (!ui::listNav(k, selected_, (int)aprsis::stations().size())) {
                 return;
             }
@@ -83,7 +84,7 @@ public:
             if (block) {
                 modem_.feed(block, audio::BLOCK);
                 for (const std::string& packet : modem_.packets) {
-                    aprsis::ingest(packet, true);
+                    aprsis::ingest(packet, aprsis::AUDIO);
                     heard_.push_back(packet);
                     if (heard_.size() > 12) heard_.erase(heard_.begin());
                     dirty = true;
@@ -134,9 +135,10 @@ private:
             char where[24] = "";
             if (here) snprintf(where, sizeof(where), "%5.1fkm %03.0f", maidenhead::distanceKm(lat, lon, s.lat, s.lon),
                                maidenhead::bearingDeg(lat, lon, s.lat, s.lon));
-            snprintf(line, sizeof(line), "%-9.9s %-12s %3um %s", s.call.c_str(), where, (unsigned)age, s.viaRadio ? "RF" : "");
+            static const char* via[3] = {"", "RF", "LoRa"};
+            snprintf(line, sizeof(line), "%-9.9s %-12s %3um %s", s.call.c_str(), where, (unsigned)age, via[s.source]);
             rows.push_back(line);
-            colors.push_back(s.viaRadio ? ui::C_OK : ui::C_TEXT);
+            colors.push_back(s.viaRadio() ? ui::C_OK : ui::C_TEXT);
         }
         if (selected_ >= (int)list.size()) selected_ = (int)list.size() - 1;
         ui::list(rows, selected_, scroll_, &colors);
@@ -172,7 +174,8 @@ private:
         ui::fill(0, y, ui::W, ui::ROW_H, ui::C_FOOT);
         std::string shown = input_.value.size() > 36 ? input_.value.substr(input_.value.size() - 36) : input_.value;
         ui::textOn(4, y + 2, "> " + shown + "_", ui::C_TEXT, ui::C_FOOT);
-        std::string hint = !status_.empty() ? status_ : aprsis::online() ? "ENTER send   TAB radio modem" : aprsis::status();
+        std::string hint = !status_.empty() ? status_ : loraaprs::ready() ? "ENTER send on LoRa   TAB radio modem"
+                           : aprsis::online() ? "ENTER send   TAB radio modem" : aprsis::status();
         if (hint.size() > 39) hint.resize(39);
         ui::footer(hint.c_str());
     }

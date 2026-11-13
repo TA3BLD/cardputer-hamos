@@ -25,6 +25,7 @@
 #include "core/Cap.h"
 #include "core/Config.h"
 #include "core/Gps.h"
+#include "core/LoraAprs.h"
 #include "core/Mesh.h"
 #include "core/Net.h"
 #include "core/Rig.h"
@@ -180,6 +181,7 @@ void setup() {
     net::begin();
     gps::begin();
     mesh::begin();
+    loraaprs::begin();
     aprsis::begin();
     rig::begin();
     wsjtxlink::begin();
@@ -197,6 +199,7 @@ void loop() {
     net::tick();
     gps::tick();
     mesh::tick();
+    loraaprs::tick();
     web::tick();
     aprsis::tick();
     rig::tick();

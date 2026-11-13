@@ -63,7 +63,7 @@ public:
             ui::clearBody();
             ui::textCentered(ui::BODY_Y + 24, "Mesh not running", ui::C_WARN, 2);
             ui::textCentered(ui::BODY_Y + 56, mesh::status(), ui::C_DIM);
-            ui::textCentered(ui::BODY_Y + 72, "Needs the LoRa cap. See Settings > Mesh.", ui::C_DIM);
+            ui::textCentered(ui::BODY_Y + 72, "Needs the LoRa cap. See Settings: LoRa mode.", ui::C_DIM);
             ui::footer("` back");
             return;
         }

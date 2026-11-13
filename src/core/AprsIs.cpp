@@ -2,6 +2,7 @@
 #include <M5Cardputer.h>
 #include <WiFi.h>
 #include "Config.h"
+#include "LoraAprs.h"
 #include "Net.h"
 #include "Station.h"
 #include "lib/Aprs.h"
@@ -72,11 +73,35 @@ void begin() {
     client.stop();
     loggedIn = attempted = beaconSent = false;
     isEnabled = config::get("aprs_on", "0") == "1";
-    statusText = !isEnabled ? "APRS-IS is switched off in Settings"
+    statusText = !isEnabled ? (loraaprs::ready() ? "LoRa-APRS only (APRS-IS off)" : "APRS-IS is switched off in Settings")
                  : myCall().empty() ? "Set your callsign in Settings first" : "Waiting for WiFi";
 }
 
-void ingest(const std::string& tnc2, bool viaRadio) {
+// Sends one packet (text after the "SRC>DST,PATH:" header is `info`) the best way available.
+static bool sendPacket(const std::string& info) {
+    if (loraaprs::ready()) return loraaprs::send(aprs::header(myCall(), "WIDE1-1") + info);
+    if (loggedIn) {
+        sendLine(aprs::header(myCall()) + info);
+        return true;
+    }
+    return false;
+}
+
+bool canSend() { return loggedIn || loraaprs::ready(); }
+
+void gate(const std::string& tnc2) {
+    if (!loggedIn || config::get("lora_igate", "0") != "1") return;
+    size_t colon = tnc2.find(':');
+    if (colon == std::string::npos) return;
+    std::string head = tnc2.substr(0, colon);
+    // Never gate traffic that came from the internet, or generic queries.
+    if (head.find("TCPIP") != std::string::npos || head.find("NOGATE") != std::string::npos ||
+        head.find("RFONLY") != std::string::npos || tnc2.compare(colon + 1, 1, "?") == 0)
+        return;
+    sendLine(head + ",qAR," + myCall() + tnc2.substr(colon));
+}
+
+void ingest(const std::string& tnc2, Source source) {
     aprs::Packet p;
     if (!aprs::parseTnc2(tnc2, p)) return;
     aprs::Message m = aprs::parseMessage(p.info);
@@ -87,7 +112,10 @@ void ingest(const std::string& tnc2, bool viaRadio) {
                 if (sent.mine && sent.id == m.id && upper(sent.to) == upper(p.src)) sent.acked = m.isAck;
             return;
         }
-        if (!m.id.empty() && loggedIn) sendLine(aprs::header(myCall()) + aprs::formatAck(p.src, m.id));
+        if (!m.id.empty()) {                     // acknowledge the way it came
+            if (source == LORA && loraaprs::ready()) loraaprs::send(aprs::header(myCall(), "WIDE1-1") + aprs::formatAck(p.src, m.id));
+            else if (loggedIn) sendLine(aprs::header(myCall()) + aprs::formatAck(p.src, m.id));
+        }
         for (const Message& old : messageList)                       // senders repeat until acknowledged
             if (!old.mine && old.from == p.src && old.id == m.id && old.text == m.text && !m.id.empty()) return;
         if (messageList.size() >= MAX_MESSAGES) messageList.erase(messageList.begin());
@@ -102,6 +130,7 @@ void ingest(const std::string& tnc2, bool viaRadio) {
         return;
     }
     aprs::Position pos = aprs::parsePosition(p.info);
+    if (!pos.valid) pos = aprs::parseMicE(p.dst, p.info);
     if (!pos.valid || upper(p.src) == myCall()) return;
     Station* s = nullptr;
     for (Station& known : stationList)
@@ -119,10 +148,11 @@ void ingest(const std::string& tnc2, bool viaRadio) {
     }
     s->lat = pos.lat;
     s->lon = pos.lon;
+    s->symbolTable = pos.symbolTable;
     s->symbol = pos.symbol;
     s->comment = pos.comment;
     s->lastHeardMs = millis();
-    s->viaRadio = viaRadio;
+    s->source = source;
 }
 
 void tick() {
@@ -147,7 +177,7 @@ void tick() {
         char c = (char)client.read();
         lastDataMs = now;
         if (c == '\n') {
-            if (!line.empty() && line[0] != '#') ingest(line, false);
+            if (!line.empty() && line[0] != '#') ingest(line, INTERNET);
             line.clear();
         } else if (c != '\r' && line.size() < 400) {
             line += c;
@@ -176,15 +206,15 @@ std::string beaconPacket(const std::string& path) {
 }
 
 bool sendBeacon(std::string& error) {
-    if (!loggedIn) { error = statusText; return false; }
+    if (!canSend()) { error = statusText; return false; }
     std::string packet = beaconPacket("TCPIP*");
     if (packet.empty()) { error = "No position: set a grid or wait for GPS"; return false; }
-    sendLine(packet);
+    sendPacket(packet.substr(packet.find(':') + 1));
     return true;
 }
 
 bool sendMessage(const std::string& to, const std::string& text, std::string& error) {
-    if (!loggedIn) { error = statusText; return false; }
+    if (!canSend()) { error = statusText; return false; }
     if (to.empty() || to.size() > 9 || text.empty()) { error = "Type: CALLSIGN message"; return false; }
     if (text.size() > 67) { error = "Message too long (67 characters)"; return false; }
     Message m;
@@ -193,7 +223,7 @@ bool sendMessage(const std::string& to, const std::string& text, std::string& er
     m.text = text;
     m.id = std::to_string(nextId++);
     m.mine = true;
-    sendLine(aprs::header(myCall()) + aprs::formatMessage(m.to, m.text, m.id));
+    sendPacket(aprs::formatMessage(m.to, m.text, m.id));
     if (messageList.size() >= MAX_MESSAGES) messageList.erase(messageList.begin());
     messageList.push_back(m);
     return true;

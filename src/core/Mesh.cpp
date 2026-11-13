@@ -236,8 +236,11 @@ void onPacket(const uint8_t* data, size_t len, float rssi, float snr) {
 void begin() {
     isReady = false;
     queue.clear();
-    isEnabled = config::get("mesh_on", "1") == "1";
-    if (!isEnabled) { statusText = "Mesh is switched off in Settings"; return; }
+    isEnabled = config::get("mesh_on", "1") == "1" && config::get("lora_mode", "mesh") != "aprs";
+    if (!isEnabled) {
+        statusText = config::get("lora_mode", "mesh") == "aprs" ? "LoRa radio is in APRS mode (Settings)" : "Mesh is switched off in Settings";
+        return;
+    }
 
     region = findRegion(config::get("mesh_region", "EU_868"));
     preset = findPreset(config::get("mesh_preset", "LongFast"));
