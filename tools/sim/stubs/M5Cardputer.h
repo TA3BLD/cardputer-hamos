@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <vector>
 #include "Arduino.h"
 
@@ -58,16 +59,23 @@ struct Keyboard_Class {
 };
 
 struct SimPower { int getBatteryLevel() { return 87; } };
-// Speaker: everything "played" is kept so the script can check it.
+// Speaker: everything "played" is kept so the script can check it. Queued
+// pieces take their real playing time in simulated time.
 inline std::vector<int16_t> sim_speaker;
 struct SimSpeaker {
+    std::deque<double> ends;            // when each queued piece finishes (sim ms)
     void tone(float, uint32_t) {}
     bool begin() { return true; }
     void end() {}
-    void stop() {}
-    size_t isPlaying(uint8_t) { return 0; }
-    bool playRaw(const int16_t* data, size_t n, uint32_t, bool, uint32_t, int) {
+    void stop() { ends.clear(); }
+    size_t isPlaying(uint8_t) {
+        while (!ends.empty() && ends.front() <= sim_ms) ends.pop_front();
+        return ends.size() > 2 ? 2 : ends.size();
+    }
+    bool playRaw(const int16_t* data, size_t n, uint32_t rate, bool, uint32_t, int) {
         sim_speaker.insert(sim_speaker.end(), data, data + n);
+        double start = ends.empty() ? (double)sim_ms : std::max((double)sim_ms, ends.back());
+        ends.push_back(start + 1000.0 * n / rate);
         return true;
     }
 };

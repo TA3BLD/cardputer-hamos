@@ -10,6 +10,8 @@
 #include "lib/Aprs.h"
 #include "lib/Ft8.h"
 #include "lib/Ft8Decoder.h"
+#include "lib/Bmp.h"
+#include "lib/Sstv.h"
 #include "lib/Meshtastic.h"
 #include "lib/Wsjtx.h"
 #include "mbedtls/aes.h"
@@ -104,6 +106,12 @@ static bool contains(const std::vector<std::string>& v, const std::string& prefi
     for (const std::string& s : v)
         if (s.compare(0, prefix.size(), prefix) == 0) return true;
     return false;
+}
+
+// Lets whatever HamOS is playing finish.
+static void runUntilQuiet() {
+    for (int i = 0; i < 60000 && audio::playing(); i++) run(10);
+    run(100);
 }
 
 static void hear(const std::vector<int16_t>& audio, double gain = 0.3, int noise = 400) {
@@ -411,9 +419,10 @@ int main() {
     }
     sim_speaker.clear();
     key('b');                                  // beacon through the speaker
-    run(200);
+    runUntilQuiet();
     {
         ax25::Demodulator check;               // what came out of the speaker must be a valid packet
+        sim_speaker.resize(sim_speaker.size() + 11025 / 2, 0);     // the receiver hears on after the picture
         check.feed(sim_speaker.data(), sim_speaker.size());
         EXPECT(check.packets.size() == 1 && check.packets[0] == "TA3BLD-7>APZHAM,WIDE1-1,WIDE2-1:!3825.42N/02708.57E[HamOS");
     }
@@ -564,13 +573,88 @@ int main() {
     shot("decoder-rtty");
     sim_speaker.clear();
     enter();                                   // send a CQ through the speaker
-    run(200);
+    runUntilQuiet();
     {
         rtty::Demodulator check;
+        sim_speaker.resize(sim_speaker.size() + 11025 / 2, 0);     // the receiver hears on after the picture
         check.feed(sim_speaker.data(), sim_speaker.size());
         EXPECT(check.text == "RYRYRY CQ CQ CQ DE TA3BLD TA3BLD TA3BLD K");
     }
     back();
+
+    // ---- SSTV: receive a Robot 36 picture from the microphone, then send one ----
+    openNext();
+    EXPECT(std::string(current->name()) == "SSTV");
+    {
+        // The "other station" sends qsl.bmp in Robot 36.
+        std::string file;
+        storage::readFile("/HamOS/sstv/qsl.bmp", file);
+        bmp::Info info;
+        EXPECT(bmp::parse((const uint8_t*)file.data(), file.size(), info) && info.width == 320 && info.height == 256);
+        struct Pic { const std::string* file; bmp::Info info; } pic{&file, info};
+        size_t count;
+        const sstv::Mode* modes = sstv::modes(count);
+        const sstv::Mode* robot36 = sstv::byVis(8);
+        sstv::Encoder enc(*robot36, [](void* u, int y, uint8_t* rgb) {
+            Pic& p = *(Pic*)u;
+            int sy = y * p.info.height / 240;
+            const uint8_t* row = (const uint8_t*)p.file->data() + bmp::rowOffset(p.info, sy);
+            for (int x = 0; x < 320; x++) { rgb[x * 3] = row[x * 3 + 2]; rgb[x * 3 + 1] = row[x * 3 + 1]; rgb[x * 3 + 2] = row[x * 3]; }
+            return true;
+        }, &pic, 11025, true, 9000);
+        std::vector<int16_t> audio;
+        int16_t buf[1024];
+        for (size_t n; (n = enc.read(buf, 1024)) > 0;) audio.insert(audio.end(), buf, buf + n);
+        (void)modes;
+        hear(audio, 1.0, 600);
+        run(2000);
+        std::string saved = sstvApp.lastSavedForTest();
+        EXPECT(!saved.empty() && storage::fileSize(saved.c_str()) == 54 + 320 * 3 * 240);
+        // The received picture looks like the one sent.
+        std::string rx;
+        storage::readFile(saved.c_str(), rx);
+        bmp::Info ri;
+        double diff = 255;
+        if (bmp::parse((const uint8_t*)rx.data(), rx.size(), ri)) {
+            double sum = 0;
+            int n = 0;
+            for (int y = 10; y < 230; y += 7)
+                for (int x = 10; x < 310; x += 5) {
+                    const uint8_t* a = (const uint8_t*)rx.data() + bmp::rowOffset(ri, y) + x * 3;
+                    const uint8_t* b = (const uint8_t*)file.data() + bmp::rowOffset(info, y * 256 / 240) + x * 3;
+                    for (int c = 0; c < 3; c++) sum += std::abs((int)a[c] - (int)b[c]);
+                    n += 3;
+                }
+            diff = sum / n;
+        }
+        EXPECT(diff < 20);
+        fprintf(stderr, "sstv: received picture differs by %.1f on average (0..255)\n", diff);
+        shot("sstv-receive");
+
+        // Send testcard.bmp in Robot 36 with the callsign on it.
+        tab();
+        EXPECT(sstvApp.selectForTest("testcard.bmp"));
+        for (int i = 0; i < 5; i++) key('m');     // Martin M1 -> ... -> Robot 36
+        shot("sstv-gallery");
+        sim_speaker.clear();
+        enter();
+        run(5000);
+        shot("sstv-send");
+        runUntilQuiet();
+        sstv::Decoder check(11025);
+        struct Got { int lines = 0; int white = 0; } got;
+        check.onLine([](void* u, const sstv::Mode&, int y, const uint8_t* rgb) {
+            Got& g = *(Got*)u;
+            g.lines = y + 1;
+            if (y >= 6 && y < 22)                  // the callsign rows: some pixels must be white
+                for (int x = 4; x < 120; x++) g.white += rgb[x * 3] > 200 && rgb[x * 3 + 1] > 200 && rgb[x * 3 + 2] > 200;
+        }, &got);
+        sim_speaker.resize(sim_speaker.size() + 11025 / 2, 0);     // the receiver hears on after the picture
+        check.feed(sim_speaker.data(), sim_speaker.size());
+        fprintf(stderr, "sstv send: mode %s, %d lines, %d white pixels in the callsign rows, %zu samples\n", check.mode() ? check.mode()->name : "none", got.lines, got.white, sim_speaker.size());
+        EXPECT(check.mode() == robot36 && got.lines == 240 && got.white > 100);
+        back();
+    }
 
     openNext();                                // Locator
     type("FN31pr");

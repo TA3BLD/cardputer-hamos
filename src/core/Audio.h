@@ -21,6 +21,7 @@ typedef size_t (*Source)(int16_t* out, size_t max, void* user);
 void play(Source source, void* user, uint32_t sampleRate);
 void play(std::vector<int16_t>&& samples, uint32_t sampleRate);     // short clips
 bool playing();
+void stopPlaying();                 // cancels what is playing
 void tick();
 
 }  // namespace audio

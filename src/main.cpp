@@ -23,6 +23,7 @@
 #include "apps/SatApp.h"
 #include "apps/SettingsApp.h"
 #include "apps/SolarApp.h"
+#include "apps/SstvApp.h"
 #include "core/AprsIs.h"
 #include "core/Audio.h"
 #include "core/Cap.h"
@@ -49,6 +50,7 @@ static SolarApp solarApp;
 static SatApp satApp;
 static GpsApp gpsApp;
 static DigiApp digiApp;
+static SstvApp sstvApp;
 static LocatorApp locatorApp;
 static RepeaterApp repeaterApp;
 static CalcApp calcApp;
@@ -58,10 +60,10 @@ static ReferenceApp referenceApp;
 static GuideApp guideApp;
 static CountryApp countryApp;
 static SettingsApp settingsApp;
-static const std::vector<App*> apps = {&logbookApp,  &meshApp,     &aprsApp,   &mapApp,     &ft8App,       &dxClusterApp,
-                                       &wsjtxApp,    &solarApp,    &satApp,    &gpsApp,     &digiApp,      &locatorApp,
-                                       &repeaterApp, &calcApp,     &morseApp,  &clockApp,   &referenceApp, &guideApp,
-                                       &countryApp,  &settingsApp};
+static const std::vector<App*> apps = {&logbookApp, &meshApp,    &aprsApp,     &mapApp,     &ft8App,     &dxClusterApp,
+                                       &wsjtxApp,   &solarApp,   &satApp,      &gpsApp,     &digiApp,    &sstvApp,
+                                       &locatorApp, &repeaterApp, &calcApp,    &morseApp,   &clockApp,   &referenceApp,
+                                       &guideApp,   &countryApp, &settingsApp};
 // -----------------------------------------------------------------------------
 
 static Launcher launcher(apps);

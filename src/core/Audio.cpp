@@ -72,6 +72,12 @@ void play(std::vector<int16_t>&& samples, uint32_t sampleRate) {
 
 bool playing() { return isPlaying; }
 
+void stopPlaying() {
+    source = nullptr;
+    isPlaying = false;
+    M5Cardputer.Speaker.stop();
+}
+
 void tick() {
     if (!isPlaying) return;
     // Hand the speaker the next piece whenever its queue has room (it holds two).
