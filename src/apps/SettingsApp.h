@@ -2,11 +2,14 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/AprsIs.h"
 #include "core/Config.h"
 #include "core/Mesh.h"
+#include "core/Rig.h"
 #include "core/Net.h"
 #include "core/Ui.h"
 #include "core/Web.h"
+#include "core/Wsjtx.h"
 
 // Edits the values in /HamOS/config.txt.
 class SettingsApp : public App {
@@ -33,8 +36,11 @@ public:
                 if (input_.value.empty()) config::erase(f.key);     // empty = back to the default
                 else config::set(f.key, input_.value);
                 status_ = config::save() ? "Saved" : "No SD card: not saved";
-                if (f.apply == WIFI) net::begin();
-                if (f.apply == MESH) mesh::begin();
+                if (f.apply & WIFI) net::begin();
+                if (f.apply & MESH) mesh::begin();
+                if (f.apply & APRS) aprsis::begin();
+                if (f.apply & RIG) rig::begin();
+                if (f.apply & FT8) wsjtxlink::begin();
                 editing_ = false;
             } else if (!input_.handle(k)) {
                 return;
@@ -72,19 +78,19 @@ public:
     }
 
 private:
-    enum Apply { NONE, WIFI, MESH };     // what has to restart when the value changes
+    enum { NONE = 0, WIFI = 1, MESH = 2, APRS = 4, RIG = 8, FT8 = 16 };    // what restarts when the value changes
     struct Field {
         const char* key;
         const char* label;
         const char* def;
         size_t maxLen;
         bool upper, secret;
-        Apply apply;
+        int apply;
     };
 
     static const std::vector<Field>& fields() {
         static const std::vector<Field> f = {
-            {"callsign", "Callsign", "", 10, true, false, MESH},
+            {"callsign", "Callsign", "", 10, true, false, MESH | APRS},
             {"grid", "Grid locator", "", 6, false, false, NONE},
             {"utc_offset", "UTC offset (h)", "3", 5, false, false, NONE},
             {"wifi_ssid", "WiFi SSID", "", 32, false, false, WIFI},
@@ -101,12 +107,27 @@ private:
             {"mesh_pos", "Share position 0/1", "0", 1, false, false, NONE},
             {"mesh_beep", "Message beep 0/1", "1", 1, false, false, NONE},
             {"lora_power", "LoRa power dBm", "22", 3, false, false, MESH},
+            {"aprs_on", "APRS-IS (0/1)", "0", 1, false, false, APRS},
+            {"aprs_ssid", "APRS SSID", "7", 2, false, false, APRS},
+            {"aprs_range", "APRS range km", "50", 4, false, false, APRS},
+            {"aprs_beacon", "APRS beacon 0/1", "0", 1, false, false, NONE},
+            {"aprs_comment", "APRS comment", "HamOS", 36, false, false, NONE},
             {"dx_host", "DX cluster host", "dxc.ve7cc.net", 40, false, false, NONE},
             {"dx_port", "DX cluster port", "23", 5, false, false, NONE},
             {"dx_beep", "New DXCC beep 0/1", "1", 1, false, false, NONE},
+            {"rig_host", "Rig host (rigctld)", "", 40, false, false, RIG},
+            {"rig_port", "Rig port", "4532", 5, false, false, RIG},
+            {"wsjtx_on", "WSJT-X link 0/1", "0", 1, false, false, FT8},
+            {"wsjtx_port", "WSJT-X UDP port", "2237", 5, false, false, FT8},
+            {"pota_ref", "POTA park ref", "", 12, true, false, NONE},
+            {"contest", "Contest mode 0/1", "0", 1, false, false, NONE},
+            {"id_timer", "ID reminder min", "0", 3, false, false, NONE},
             {"cw_wpm", "CW speed WPM", "18", 2, false, false, NONE},
             {"cw_tone", "CW tone Hz", "700", 4, false, false, NONE},
+            {"cw_rx_tone", "CW decode tone Hz", "700", 4, false, false, NONE},
             {"koch_level", "Koch level", "2", 2, false, false, NONE},
+            {"brightness", "Brightness 10-255", "160", 3, false, false, NONE},
+            {"dim_after", "Dim after s (0=no)", "60", 4, false, false, NONE},
         };
         return f;
     }

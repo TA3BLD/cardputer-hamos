@@ -1,10 +1,18 @@
 #pragma once
+#include <map>
 #include "WiFi.h"
-inline std::string sim_http_body;   // what the next GET returns
+// Web pages: the body returned for any URL containing the key.
+inline std::map<std::string, std::string> sim_http;
 struct HTTPClient {
+    std::string url;
     void setTimeout(int) {}
-    bool begin(WiFiClient&, const char*) { return true; }
-    int GET() { return sim_http_body.empty() ? -1 : 200; }
-    String getString() { return sim_http_body; }
+    bool begin(WiFiClient&, const char* u) { url = u; return true; }
+    const std::string* body() {
+        for (auto& kv : sim_http)
+            if (url.find(kv.first) != std::string::npos) return &kv.second;
+        return nullptr;
+    }
+    int GET() { return body() ? 200 : -1; }
+    String getString() { return body() ? *body() : std::string(); }
     void end() {}
 };

@@ -4,8 +4,11 @@
 #include "main.cpp"
 
 #include <RadioLib.h>
+#include <WiFiUdp.h>
 #include "core/Log.h"
+#include "lib/Aprs.h"
 #include "lib/Meshtastic.h"
+#include "lib/Wsjtx.h"
 #include "mbedtls/aes.h"
 
 uint32_t sim_ms = 1000;
@@ -25,25 +28,40 @@ static void feedGps() {
     Serial1.inject(nmeaLine("GNRMC,110900.00,A,3825.422,N,02708.568,E,0.4,271.0,131126,,,A"));
 }
 
+static const char* kRigHost = "192.168.1.50";
+static const char* kAprsHost = "rotate.aprs2.net";
+static const char* kClusterHost = "dxc.ve7cc.net";
+
 static void run(int ms = 60) {
-    static uint32_t lastGps = 0;
+    static uint32_t lastGps = 0, lastRig = 0, lastKeepAlive = 0;
     for (int t = 0; t < ms; t += 10) {
         sim_ms += 10;
         if (sim_ms - lastGps >= 1000) { lastGps = sim_ms; feedGps(); }
+        if (sim_ms - lastRig >= 3000) { lastRig = sim_ms; sim_net[kRigHost].inject("14074000\nUSB\n2400\n"); }   // rigctld answers
+        if (sim_ms - lastKeepAlive >= 20000) { lastKeepAlive = sim_ms; sim_net[kAprsHost].inject("# aprsc 2.1.15 keepalive\r\n"); }
         loop();
     }
 }
 
-// ---- keyboard ----
-static void press(const Keyboard_Class::KeysState& s) {
-    M5Cardputer.Keyboard.inject(s);
+// ---- microphone: queue audio and let the app consume all of it ----
+static void hear(const std::vector<int16_t>& audio, double gain = 0.3, int noise = 400) {
+    for (int16_t v : audio) sim_mic.push_back((int16_t)(v * gain + rand() % (2 * noise) - noise));
+    while (!sim_mic.empty()) run(10);
+    run(60);
+}
+
+// ---- keyboard: every press is followed by a release ----
+typedef Keyboard_Class::KeysState Keys;
+static void press(const Keys& s) {
+    M5Cardputer.Keyboard.script.push_back(s);
+    M5Cardputer.Keyboard.script.push_back(Keys());
     run();
 }
-static void key(char c) { Keyboard_Class::KeysState s; s.word.push_back(c); press(s); }
+static void key(char c) { Keys s; s.word.push_back(c); press(s); }
 static void type(const char* text) { for (const char* p = text; *p; p++) key(*p); }
-static void enter() { Keyboard_Class::KeysState s; s.enter = true; press(s); }
-static void tab() { Keyboard_Class::KeysState s; s.tab = true; press(s); }
-static void del(int n = 1) { while (n--) { Keyboard_Class::KeysState s; s.del = true; press(s); } }
+static void enter() { Keys s; s.enter = true; press(s); }
+static void tab() { Keys s; s.tab = true; press(s); }
+static void del(int n = 1) { while (n--) { Keys s; s.backspace = true; press(s); } }
 static void back() { key('`'); }
 static void shot(const char* name) { run(1100); printf("S %s\n", name); }
 static void openNext() { key('/'); enter(); }   // next launcher tile
@@ -114,6 +132,44 @@ int main() {
     setup();
     run();
 
+    // Keyboard handling, in the launcher: Fn+arrow keys move the selection, and
+    // fast typing where keys overlap must not repeat characters.
+    {
+        Keys right; right.fn = true; right.right = true;
+        Keys left; left.fn = true; left.left = true;
+        press(right); press(right);
+        enter();                                    // third tile
+        EXPECT(std::string(current->name()) == "APRS");
+        Keys esc; esc.fn = true; esc.esc = true;    // Fn + ` = ESC: back to the launcher
+        press(esc);
+        EXPECT(current == &launcher);
+        press(left); press(left);
+        key('/'); enter();                          // plain / works as "right" too: Mesh, chat input active
+        EXPECT(std::string(current->name()) == "Mesh");
+        Keys a, ab, b, shiftOnly, shiftH;
+        a.word = {'a'}; ab.word = {'a', 'b'}; b.word = {'b'};
+        shiftOnly.shift = true; shiftH.shift = true; shiftH.word = {'H'};
+        Keys h; h.word = {'h'};
+        for (const Keys& step : {a, ab, b, Keys(), shiftOnly, shiftH, h, Keys()}) M5Cardputer.Keyboard.script.push_back(step);
+        run(200);
+        Keys semicolon; semicolon.word = {';'};     // without Fn, ; is just text here
+        press(semicolon);
+        EXPECT(meshApp.inputForTest() == "abH;");
+        del(4);
+        EXPECT(meshApp.inputForTest().empty());
+        back();
+        key(',');                                   // launcher selection back on the first tile
+    }
+
+    // Line wrapping used by the chat and decoder screens.
+    {
+        auto w = ui::wrapLines("one two three four", 9);
+        EXPECT(w.size() == 3 && w[0] == "one two " && w[1] == "three " && w[2] == "four");
+        w = ui::wrapLines("abcdefghijkl\nxy", 5);
+        EXPECT(w.size() == 4 && w[0] == "abcde" && w[1] == "fghij" && w[2] == "kl" && w[3] == "xy");
+        EXPECT(ui::wrapLines("", 10).empty() && ui::ascii("G\xc3\xbcnayd\xc4\xb1n \xf0\x9f\x98\x80") == "Gunaydin ?");
+    }
+
     // The node announces itself once the radio is up.
     EXPECT(!sim_lora_sent.empty());
     if (!sim_lora_sent.empty()) {
@@ -137,6 +193,25 @@ int main() {
     sim_lora_inject("short");
     run();
     EXPECT(mesh::messages().size() == 3 && mesh::stats().otherChannel == 1);
+    // ---- APRS-IS: login, nearby stations and a message for us ----
+    {
+        const std::string& login = sim_net_sent[kAprsHost];
+        EXPECT(login.find("user TA3BLD-7 pass " + std::to_string(aprs::passcode("TA3BLD")) + " vers HamOS") == 0);
+        EXPECT(login.find("filter r/38.42/27.14/50") != std::string::npos);
+    }
+    sim_net[kAprsHost].inject("# aprsc 2.1.15-gc67551b\r\n# logresp TA3BLD-7 verified, server T2TURKEY\r\n"
+                              "TA3XYZ-9>APDR16,TCPIP*,qAC,T2TURKEY:=3827.60N/02706.60E>Karsiyaka sahil, 145.500\r\n"
+                              "TA3ABC-1>APRS,TCPIP*,qAC,T2TURKEY:!3828.20N/02713.20E#Bornova digi W1\r\n"
+                              "YM3KDS>APRS,qAR,TA3ABC-1:!3813.70N/02650.10E-Seferihisar\r\n"
+                              "TA4KA-7>APZHAM,WIDE1-1,qAR,TA3ABC-1:/131109z3805.00N/02701.00E[yuruyus\r\n"
+                              "TA3XYZ-9>APDR16,TCPIP*,qAC,T2TURKEY::TA3BLD-7 :Selam, cikista misin?{7\r\n"
+                              "TA2ZZ>APRS,TCPIP*::TA9XXX   :not for us{1\r\n");
+    run(200);
+    EXPECT(aprsis::online() && aprsis::stations().size() == 4 && aprsis::messages().size() == 1 && aprsis::unread() == 1);
+    EXPECT(sim_net_sent[kAprsHost].find("TA3BLD-7>APZHAM,TCPIP*::TA3XYZ-9 :ack7\r\n") != std::string::npos);
+    sim_net[kAprsHost].inject("TA3XYZ-9>APDR16,TCPIP*,qAC,T2TURKEY::TA3BLD-7 :Selam, cikista misin?{7\r\n");   // repeat
+    run(100);
+    EXPECT(aprsis::messages().size() == 1);
     shot("launcher");
 
     enter();                                   // Logbook
@@ -157,12 +232,25 @@ int main() {
                file.find("W1AW") != std::string::npos && adif::parse(file).size() == 4);
         EXPECT(file.find("<RST_SENT:3>599") != std::string::npos);
     }
-    key(';'); key(';');
+    // Contest mode: serial numbers instead of a note.
+    config::set("contest", "1");
+    key('n'); type("ea5xx"); enter();
+    del(10); type("14.250"); enter();
+    del(8); type("ssb"); enter();
+    enter(); enter();
+    type("047");
+    shot("logbook-contest");
+    enter();
+    EXPECT(logbook::total() == 5 && readSd("/HamOS/log.adi").find("<STX:3>001 <SRX:3>047 <MY_SIG:4>POTA") != std::string::npos);
+    config::erase("contest");
     shot("logbook");
     key('n'); type("vk2abc");
     shot("logbook-new-country");
     back();
-    key('n'); type("w1aw"); enter(); enter(); enter(); enter(); enter(); type("again");
+    key('n'); type("w1aw"); enter();
+    del(10); type("7.030"); enter();           // the form starts from the radio's frequency (14.074 SSB)
+    del(8); type("cw"); enter();
+    enter(); enter(); type("again");
     shot("logbook-dupe");
     back(); back();
 
@@ -190,18 +278,84 @@ int main() {
     shot("mesh-info");
     back();
 
-    sim_telnet.inject("login: \r\nHello TA3BLD\r\n"
-                      "DX de EA5XX:     14025.0  JA1ABC       CW 599 up 1                    1104Z\r\n"
-                      "DX de DL2ABC:    21074.0  PY2XYZ       FT8 -12dB                      1105Z\r\n"
-                      "DX de IK4XX:      7155.0  TA2AB        59 in Italy                    1106Z\r\n"
-                      "DX de G3ABC:     28495.0  VK2DX        long path                      1107Z\r\n"
-                      "DX de OH2XX:     14195.0  W1AW         special event                  1108Z\r\n"
-                      "DX de SP5XX:     18130.0  ZS6ABC       cq cq                          1109Z\r\n");
-    openNext();                                // DX Cluster
-    shot("dx-cluster");
+    // ---- APRS pages, then the audio modem ----
+
+    openNext();                                // APRS (third tile)
+    shot("aprs-stations");
+    tab();
+    type("ta3xyz-9 Evet, Kordon'dayim. 73"); enter();
+    EXPECT(sim_net_sent[kAprsHost].find("TA3BLD-7>APZHAM,TCPIP*::TA3XYZ-9 :Evet, Kordon'dayim. 73{1\r\n") != std::string::npos);
+    sim_net[kAprsHost].inject("TA3XYZ-9>APDR16,TCPIP*::TA3BLD-7 :ack1\r\n");
+    run(100);
+    EXPECT(aprsis::messages().size() == 2 && aprsis::messages().back().acked && aprsis::unread() == 0);
+    shot("aprs-messages");
+    tab();                                     // radio modem page: microphone on
+    {
+        std::string frame;
+        ax25::encodeFrame("TA3KM-9>APRS,WIDE1-1,WIDE2-1:!3824.10N/02709.30E>Konak, RF'ten duyuldu", frame);
+        hear(ax25::modulate(frame));
+        ax25::encodeFrame("YM3IZM>APRS:!3827.00N/02710.00E#Izmir digi", frame);
+        hear(ax25::modulate(frame), 0.15, 300);
+        EXPECT(aprsis::stations().size() == 6);
+        bool radio = false;
+        for (const auto& st : aprsis::stations()) radio |= st.call == "TA3KM-9" && st.viaRadio;
+        EXPECT(radio);
+    }
+    shot("aprs-modem");
+    sim_speaker.clear();
+    key('b');                                  // beacon through the speaker
+    run(200);
+    {
+        ax25::Demodulator check;               // what came out of the speaker must be a valid packet
+        check.feed(sim_speaker.data(), sim_speaker.size());
+        EXPECT(check.packets.size() == 1 && check.packets[0] == "TA3BLD-7>APZHAM,WIDE1-1,WIDE2-1:!3825.42N/02708.57E[HamOS");
+    }
     back();
 
-    sim_http_body =
+    sim_net[kClusterHost].inject("login: \r\nHello TA3BLD\r\n"
+                                 "DX de EA5XX:     14025.0  JA1ABC       CW 599 up 1                    1104Z\r\n"
+                                 "DX de DL2ABC:    21074.0  PY2XYZ       FT8 -12dB                      1105Z\r\n"
+                                 "DX de IK4XX:      7155.0  TA2AB        59 in Italy                    1106Z\r\n"
+                                 "DX de G3ABC:     28495.0  VK2DX        long path                      1107Z\r\n"
+                                 "DX de OH2XX:     14195.0  W1AW         special event                  1108Z\r\n"
+                                 "DX de SP5XX:     18130.0  ZS6ABC       cq cq                          1109Z\r\n");
+    openNext();                                // DX Cluster
+    shot("dx-cluster");
+    EXPECT(sim_net_sent[kClusterHost] == "TA3BLD\r\n");
+    back();
+
+    // ---- FT8: what WSJT-X on the PC decodes, and a contact it logs ----
+    {
+        auto decode = [](int snr, uint32_t df, const char* text) {
+            wsjtx::Writer w(wsjtx::DECODE);
+            w.u8(1); w.u32(43200000); w.u32((uint32_t)snr); w.f64(0.2); w.u32(df); w.utf8("~"); w.utf8(text); w.u8(0); w.u8(0);
+            sim_udp.push_back(w.out);
+        };
+        wsjtx::Writer st(wsjtx::STATUS);
+        st.u64(14074000); st.utf8("FT8"); st.utf8("LU5ABC"); st.utf8("-12"); st.utf8("FT8"); st.u8(1); st.u8(0); st.u8(1);
+        st.u32(1500); st.u32(1500); st.utf8("TA3BLD"); st.utf8("KM38");
+        sim_udp.push_back(st.out);
+        decode(-3, 812, "CQ TA1ABC KN41");
+        decode(-17, 1034, "DL1ABC SP5XYZ JO91");
+        decode(-12, 1290, "CQ DX VK2DX QF56");
+        decode(2, 1523, "JA1ABC EA5XX RR73");
+        decode(-9, 1650, "CQ POTA K4ABC EM73");
+        decode(-14, 1871, "TA3BLD LU5ABC -12");
+        decode(-20, 2210, "CQ ZS6ABC KG33");
+        sim_udp.push_back(std::string("not a wsjt-x packet"));
+        wsjtx::Writer lg(wsjtx::LOGGED_ADIF);
+        lg.utf8("<adif_ver:5>3.1.0<programid:6>WSJT-X<EOH><call:6>LU5ABC <gridsquare:4>GF05 <mode:3>FT8 <rst_sent:3>-12 "
+                "<rst_rcvd:3>-09 <qso_date:8>20261113 <time_on:6>115800 <band:3>20m <freq:9>14.075500 <EOR>");
+        sim_udp.push_back(lg.out);
+    }
+    openNext();                                // FT8
+    run(300);
+    EXPECT(wsjtxlink::decodes().size() == 7 && wsjtxlink::logged() == 1 && logbook::total() == 6);
+    EXPECT(readSd("/HamOS/log.adi").find("<CALL:6>LU5ABC <QSO_DATE:8>20261113 <TIME_ON:4>1158 <FREQ:9>14.075500 <BAND:3>20m <MODE:3>FT8") != std::string::npos);
+    shot("ft8");
+    back();
+
+    sim_http["hamqsl.com"] =
         "<solar><solardata><updated> 13 Nov 2026 1105 GMT</updated><solarflux>148</solarflux><aindex>8</aindex>"
         "<kindex>2</kindex><xray>B7.4</xray><sunspots>112</sunspots><calculatedconditions>"
         "<band name=\"80m-40m\" time=\"day\">Fair</band><band name=\"30m-20m\" time=\"day\">Good</band>"
@@ -213,13 +367,58 @@ int main() {
     shot("solar");
     back();
 
+    // ---- Satellites: download the orbit data, then predict passes ----
+    sim_http["celestrak.org"] =
+        "ISS (ZARYA)             \r\n"
+        "1 25544U          26300.50000000  .00000000  00000-0  30000-3 0    05\r\n"
+        "2 25544  51.6400 100.0000 0005000  90.0000 270.0000 15.50000000    03\r\n"
+        "SO-50\r\n"
+        "1 27607U          26310.25000000  .00000000  00000-0  50000-4 0    03\r\n"
+        "2 27607  64.5500 200.0000 0065000 300.0000  60.0000 14.76000000    04\r\n"
+        "AO-7\r\n"
+        "1 07530U          26305.75000000  .00000000  00000-0  10000-3 0    00\r\n"
+        "2 07530 101.9000 330.0000 0012000  20.0000 340.0000 12.54000000    08\r\n"
+        "QO-100 (GEO, unsupported)\r\n"
+        "1 43700U          26305.75000000  .00000000  00000-0  00000-0 0    00\r\n"
+        "2 43700   0.0200 100.0000 0002000  20.0000 340.0000  1.00270000    08\r\n";
+    openNext();                                // Satellites
+    key('u');
+    run(200);
+    EXPECT(readSd("/HamOS/tle.txt").find("SO-50") != std::string::npos);
+    shot("satellites");
+    enter();
+    shot("satellite-passes");
+    back(); back();
+
     openNext();                                // GPS
     shot("gps");
+    back();
+
+    // ---- Decoder: Morse and RTTY from the microphone ----
+    openNext();
+    hear(cw::synthesize("CQ CQ CQ DE TA1ABC TA1ABC PSE K", 20), 0.3, 500);
+    hear(cw::synthesize("TA1ABC DE TA3BLD 599 IZMIR 73", 26), 0.2, 500);    // a faster station answers
+    shot("decoder-cw");
+    tab();
+    hear(rtty::modulate("RYRYRY CQ CQ DE TA1ABC TA1ABC PSE K\r\nUR 599 599 NR 001 73!"), 0.3, 500);
+    shot("decoder-rtty");
+    sim_speaker.clear();
+    enter();                                   // send a CQ through the speaker
+    run(200);
+    {
+        rtty::Demodulator check;
+        check.feed(sim_speaker.data(), sim_speaker.size());
+        EXPECT(check.text == "RYRYRY CQ CQ CQ DE TA3BLD TA3BLD TA3BLD K");
+    }
     back();
 
     openNext();                                // Locator
     type("FN31pr");
     shot("locator");
+    back();
+
+    openNext();                                // Repeaters
+    shot("repeaters");
     back();
 
     openNext();                                // Calculator
@@ -243,7 +442,7 @@ int main() {
     back();
 
     openNext();                                // Settings
-    for (int i = 0; i < 9; i++) key('.');
+    for (int i = 0; i < 20; i++) key('.');
     shot("settings");
 
     if (failures) fprintf(stderr, "%d simulator checks FAILED\n", failures);

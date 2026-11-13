@@ -5,6 +5,7 @@ set -e
 cd "$(dirname "$0")"
 g++ -std=gnu++17 -Wall -Wextra -Wno-deprecated-declarations -DHAMOS_SIM -I stubs -I ../../src sim.cpp ../../src/core/*.cpp -lcrypto -o sim.out
 rm -rf simsd && mkdir -p simsd/HamOS
-printf 'callsign=TA3BLD\ngrid=KM38nk\nwifi_ssid=HomeWiFi\nwifi_pass=secret\n' > simsd/HamOS/config.txt
+printf 'callsign=TA3BLD\ngrid=KM38nk\nwifi_ssid=HomeWiFi\nwifi_pass=secret\naprs_on=1\nrig_host=192.168.1.50\npota_ref=TR-0042\nwsjtx_on=1\n' > simsd/HamOS/config.txt
+cp ../../docs/repeaters-example.csv simsd/HamOS/repeaters.csv
 ./sim.out > ops.txt
 "${PYTHON:-python3}" render.py ops.txt ../../docs/screens

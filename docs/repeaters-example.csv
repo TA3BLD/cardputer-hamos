@@ -1,0 +1,8 @@
+# Example repeater list for HamOS. Copy to /HamOS/repeaters.csv on the SD card
+# and replace these made-up entries with the real repeaters of your region.
+# name,frequency MHz,shift MHz,tone,latitude,longitude,note
+EXAMPLE-1,145.6000,-0.6,88.5,38.45,27.20,Example VHF repeater (not real data)
+EXAMPLE-2,145.7250,-0.6,88.5,38.07,27.02,Example VHF repeater (not real data)
+EXAMPLE-3,439.1000,-7.6,88.5,38.40,27.05,Example UHF repeater (not real data)
+EXAMPLE-4,145.6500,-0.6,,39.10,27.18,No tone, further away
+EXAMPLE-5,439.3250,-7.6,123.0,,,No position given: listed last

@@ -1,4 +1,5 @@
 #include "Web.h"
+#include <Update.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <ctime>
@@ -41,7 +42,8 @@ std::string page(const std::string& title, const std::string& body) {
            "<title>HamOS - " + title + "</title><style>body{font-family:sans-serif;max-width:40em;margin:1em auto;padding:0 1em}"
            "input{font-size:1em;padding:.3em;margin:.2em 0;box-sizing:border-box;max-width:100%}label{display:block;margin-top:.6em}"
            "nav a{margin-right:1em}.me{color:#070}.dim{color:#777}</style></head><body>"
-           "<nav><a href=/>Status</a><a href=/settings>Settings</a><a href=/log.adi>Download log</a></nav><h2>" + title + "</h2>" +
+           "<nav><a href=/>Status</a><a href=/settings>Settings</a><a href=/log.adi>Download log</a>"
+           "<a href=/update>Update</a></nav><h2>" + title + "</h2>" +
            body + "</body></html>";
 }
 
@@ -141,6 +143,63 @@ void handleLog() {
     server.sendContent("");
 }
 
+// ---- firmware update from the browser ----
+// Only offered when a Web UI password is set: anyone who can reach this page
+// could otherwise replace the firmware.
+bool updateOk = false;
+std::string updateError;
+
+void handleUpdatePage() {
+    if (!allowed()) return;
+    if (config::get("web_pass").empty()) {
+        sendPage("Firmware update", "<p>Set a <b>Web UI password</b> in Settings on the device first. "
+                                    "Updating is only allowed with a password.</p>");
+        return;
+    }
+    sendPage("Firmware update",
+             "<p>Choose the <code>firmware.bin</code> built by PlatformIO (<code>.pio/build/cardputer-adv/firmware.bin</code>). "
+             "The device restarts when it is done.</p>"
+             "<form method=post action=/update enctype=multipart/form-data><input type=file name=firmware accept=.bin> "
+             "<input type=submit value=Install></form>");
+}
+
+void handleUpdateUpload() {
+    HTTPUpload& up = server.upload();
+    if (up.status == UPLOAD_FILE_START) {
+        std::string pass = config::get("web_pass");
+        updateOk = false;
+        if (pass.empty() || !server.authenticate("hamos", pass.c_str())) updateError = "Not authorised";
+        else if (!Update.begin(UPDATE_SIZE_UNKNOWN)) updateError = "Could not start the update";
+        else updateOk = true;
+    } else if (up.status == UPLOAD_FILE_WRITE) {
+        if (updateOk && Update.write(up.buf, up.currentSize) != up.currentSize) {
+            updateOk = false;
+            updateError = "Writing the firmware failed";
+            Update.abort();
+        }
+    } else if (up.status == UPLOAD_FILE_END) {
+        if (updateOk && !Update.end(true)) {
+            updateOk = false;
+            updateError = "The file is not a valid firmware image";
+        }
+    } else if (updateOk) {      // upload aborted
+        Update.abort();
+        updateOk = false;
+        updateError = "Upload interrupted";
+    }
+}
+
+void handleUpdateDone() {
+    if (!allowed()) return;
+    if (!updateOk) {
+        sendPage("Firmware update", "<p>Update failed: " + esc(updateError) + ". The old firmware is still installed.</p>");
+        return;
+    }
+    sendPage("Firmware update", "<p>Installed. HamOS is restarting...</p>");
+    delay(500);
+    ESP.restart();
+}
+
 }  // namespace
 
 void tick() {
@@ -151,6 +210,8 @@ void tick() {
         server.on("/settings", HTTP_GET, handleSettings);
         server.on("/settings", HTTP_POST, handleSettingsSave);
         server.on("/log.adi", HTTP_GET, handleLog);
+        server.on("/update", HTTP_GET, handleUpdatePage);
+        server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
         server.begin();
         started = true;
     }
@@ -163,6 +224,6 @@ void tick() {
 }
 
 bool running() { return started && net::connected(); }
-std::string address() { return running() ? std::string("http://") + WiFi.localIP().toString().c_str() : ""; }
+std::string address() { return running() ? "http://" + net::address() : ""; }
 
 }  // namespace web

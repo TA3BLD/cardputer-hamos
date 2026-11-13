@@ -10,6 +10,7 @@
 #include "lib/Nmea.h"
 #include "lib/SolarXml.h"
 #include "lib/Sun.h"
+#include "lib/Wsjtx.h"
 
 static int failures = 0;
 #define CHECK(cond) do { if (!(cond)) { printf("FAIL line %d: %s\n", __LINE__, #cond); failures++; } } while (0)
@@ -136,6 +137,43 @@ int main(int argc, char**) {
     CHECK(sd.valid && sd.flux == "148" && sd.aIndex == "8" && sd.kIndex == "2" && sd.xray == "B7.4");
     CHECK(sd.cond[0][0] == "Fair" && sd.cond[3][1] == "Poor" && sd.cond[1][0].empty());
     CHECK(!solar::parse("<html>error</html>").valid && !solar::parse("").valid);
+
+    // ---- WSJT-X network messages ----
+    {
+        wsjtx::Writer w(wsjtx::DECODE);
+        w.u8(1); w.u32(43200000); w.u32((uint32_t)-12); w.f64(0.3); w.u32(1523); w.utf8("~"); w.utf8("CQ DX JA1ABC PM95");
+        w.u8(0); w.u8(0);
+        wsjtx::Message m;
+        CHECK(wsjtx::parse((const uint8_t*)w.out.data(), w.out.size(), m) && m.type == wsjtx::DECODE && m.id == "WSJT-X");
+        CHECK(m.isNew && m.snr == -12 && m.df == 1523 && near(m.dt, 0.3, 1e-12) && m.text == "CQ DX JA1ABC PM95" && m.timeMs == 43200000);
+        CHECK((uint8_t)w.out[0] == 0xad && (uint8_t)w.out[3] == 0xda && w.out[7] == 2 && w.out[11] == 2);    // big-endian header
+        for (size_t cut = 0; cut < w.out.size() - 2; cut++)                                       // truncated: rejected, no crash
+            CHECK(!wsjtx::parse((const uint8_t*)w.out.data(), cut, m));
+
+        wsjtx::Writer st(wsjtx::STATUS);
+        st.u64(14074000); st.utf8("FT8"); st.utf8("LU5ABC"); st.utf8("-12"); st.utf8("FT8"); st.u8(1); st.u8(1); st.u8(0);
+        st.u32(1500); st.u32(1500); st.utf8("TA3BLD"); st.utf8("KM38");
+        CHECK(wsjtx::parse((const uint8_t*)st.out.data(), st.out.size(), m) && m.type == wsjtx::STATUS && m.dialHz == 14074000);
+        CHECK(m.mode == "FT8" && m.dxCall == "LU5ABC" && m.transmitting && !m.decoding && m.deCall == "TA3BLD" && m.deGrid == "KM38");
+
+        wsjtx::Writer lg(wsjtx::LOGGED_ADIF);
+        lg.utf8("<call:6>LU5ABC <mode:3>FT8 <eor>");
+        CHECK(wsjtx::parse((const uint8_t*)lg.out.data(), lg.out.size(), m) && m.adif == "<call:6>LU5ABC <mode:3>FT8 <eor>");
+        std::string wrong = w.out;
+        wrong[0] = 0;
+        CHECK(!wsjtx::parse((const uint8_t*)wrong.data(), wrong.size(), m) && !wsjtx::parse(nullptr, 0, m));
+
+        wsjtx::Decoded d = wsjtx::analyse("CQ DX JA1ABC PM95");
+        CHECK(d.cq && d.from == "JA1ABC" && d.grid == "PM95" && d.to.empty());
+        d = wsjtx::analyse("CQ TA3BLD KM38");
+        CHECK(d.cq && d.from == "TA3BLD" && d.grid == "KM38");
+        d = wsjtx::analyse("TA3BLD LU5ABC -12");
+        CHECK(!d.cq && d.to == "TA3BLD" && d.from == "LU5ABC" && d.grid.empty());
+        d = wsjtx::analyse("JA1ABC EA5XX RR73");
+        CHECK(d.from == "EA5XX" && d.grid.empty());         // RR73 is not a locator
+        d = wsjtx::analyse("");
+        CHECK(!d.cq && d.from.empty());
+    }
 
     // ---- DX spots ----
     dxspot::Spot spot;

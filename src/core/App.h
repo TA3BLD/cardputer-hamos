@@ -6,18 +6,25 @@
 struct KeyEvent {
     char ch = 0;        // printable character, 0 for a pure control key
     bool enter = false;
-    bool del = false;
+    bool del = false;   // Backspace (or Fn+Backspace)
     bool tab = false;
     bool fn = false;
+    bool esc = false;   // Fn + `
+    bool arrowUp = false, arrowDown = false, arrowLeft = false, arrowRight = false;    // Fn + ; . , /
 
-    // Cardputer arrow cluster (the keys with arrows printed on them).
-    bool up() const { return ch == ';'; }
-    bool down() const { return ch == '.'; }
-    bool left() const { return ch == ','; }
-    bool right() const { return ch == '/'; }
+    // Navigation: the arrow keys (Fn + ; . , /) or, for convenience, the same
+    // keys without Fn.
+    bool up() const { return arrowUp || ch == ';'; }
+    bool down() const { return arrowDown || ch == '.'; }
+    bool left() const { return arrowLeft || ch == ','; }
+    bool right() const { return arrowRight || ch == '/'; }
+    // Only the real arrow combination, for screens where ; and . are text.
+    // (Older versions of the keyboard library report Fn + ; as fn plus the character.)
+    bool fnUp() const { return arrowUp || (fn && ch == ';'); }
+    bool fnDown() const { return arrowDown || (fn && ch == '.'); }
 };
 
-constexpr char KEY_BACK = '`';   // ESC key: leave field / return to launcher
+constexpr char KEY_BACK = '`';   // ` (or Fn+` = ESC): leave field / return to launcher
 
 class App {
 public:

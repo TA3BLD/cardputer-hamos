@@ -35,8 +35,8 @@ public:
             page_ = (page_ + 1) % 3;
             selected_ = scroll_ = 0;
         } else if (page_ == CHAT) {
-            if (k.fn && k.up()) scrollBack_++;
-            else if (k.fn && k.down()) scrollBack_ = scrollBack_ > 0 ? scrollBack_ - 1 : 0;
+            if (k.fnUp()) scrollBack_++;
+            else if (k.fnDown()) scrollBack_ = scrollBack_ > 0 ? scrollBack_ - 1 : 0;
             else if (k.enter) {
                 if (input_.value.empty()) return;
                 std::string error;
@@ -71,6 +71,8 @@ public:
         else if (page_ == NODES) drawNodes();
         else drawInfo();
     }
+
+    const std::string& inputForTest() const { return input_.value; }    // simulator checks
 
 private:
     enum { CHAT, NODES, INFO };
@@ -117,7 +119,7 @@ private:
 
         char hint[64];
         if (!status_.empty()) snprintf(hint, sizeof(hint), "%s", status_.c_str());
-        else snprintf(hint, sizeof(hint), "ENTER send  TAB nodes(%d)  Fn+;/. scroll", (int)mesh::nodes().size());
+        else snprintf(hint, sizeof(hint), "ENTER send  TAB nodes(%d)  Fn+arrows", (int)mesh::nodes().size());
         ui::footer(hint);
     }
 

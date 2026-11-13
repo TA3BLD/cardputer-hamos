@@ -31,7 +31,10 @@ struct String {
     const char* c_str() const { return s.c_str(); }
 };
 
-struct SimEsp { uint64_t getEfuseMac() { return 0x78563412AABBULL; } };   // node !12345678
+struct SimEsp {
+    uint64_t getEfuseMac() { return 0x78563412AABBULL; }    // node !12345678
+    void restart() {}
+};
 inline SimEsp ESP;
 
 // Byte stream the simulator script can fill (GNSS receiver, telnet server).

@@ -31,5 +31,6 @@ void tick() {
 bool configured() { return hasCredentials; }
 bool connected() { return WiFi.status() == WL_CONNECTED; }
 bool timeValid() { return time(nullptr) > 1700000000; }
+std::string address() { return connected() ? std::string(WiFi.localIP().toString().c_str()) : ""; }
 
 }  // namespace net

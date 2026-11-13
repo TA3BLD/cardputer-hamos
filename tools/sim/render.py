@@ -51,7 +51,8 @@ def main(ops_path, out_dir):
         kind, _, rest = line.partition(" ")
         if kind == "R":
             x, y, w, h, c = map(int, rest.split())
-            ImageDraw.Draw(img).rectangle([x, y, x + w - 1, y + h - 1], fill=rgb(c))
+            if w > 0 and h > 0:
+                ImageDraw.Draw(img).rectangle([x, y, x + w - 1, y + h - 1], fill=rgb(c))
         elif kind == "T":
             x, y, size, datum, fg, bg, text = (rest.split(" ", 6) + [""])[:7]
             draw_text(img, int(x), int(y), float(size), int(datum), int(fg), int(bg), text)

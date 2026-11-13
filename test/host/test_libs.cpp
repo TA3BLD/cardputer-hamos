@@ -13,11 +13,11 @@ int main() {
     // --- ADIF ---
     CHECK(adif::band(14.074) == "20m" && adif::band(145.5) == "2m" && adif::band(433.5) == "70cm");
     CHECK(adif::band(12.0).empty());
-    adif::Qso q{"TA1ABC", "14.074", "FT8", "59", "57", "20261113", "1234", "nice <qso>"};
+    adif::Qso q{"TA1ABC", "14.074", "FT8", "59", "57", "20261113", "1234", "nice <qso>", "", "", ""};
     std::string rec = adif::toRecord(q);
     CHECK(rec.find("<CALL:6>TA1ABC ") == 0);
     CHECK(rec.find("<BAND:3>20m ") != std::string::npos);
-    adif::Qso empty{"W1AW", "", "", "", "", "", "", ""};
+    adif::Qso empty{"W1AW", "", "", "", "", "", "", "", "", "", ""};
     std::string file = adif::header() + rec + adif::toRecord(empty);
     auto all = adif::parse(file);
     CHECK(all.size() == 2);
@@ -29,6 +29,15 @@ int main() {
     auto other = adif::parse("<call:5>DL1XX<time_on:6>093015<freq:5:N>7.100<foo:3>bar<eor>\n<call:4>G4AB<eor>");
     CHECK(other.size() == 2 && other[0].time == "0930" && other[0].freq == "7.100" && other[1].call == "G4AB");
     CHECK(adif::parse("<CALL:99>short").empty());   // truncated file must not crash
+    // Contest and activation fields, and the start time used for the hourly rate
+    adif::Qso c{"EA5XX", "14.250", "SSB", "59", "59", "20261113", "1234", "", "", "", ""};
+    c.stx = "001"; c.srx = "047"; c.potaRef = "TR-0042";
+    std::string crec = adif::toRecord(c);
+    CHECK(crec.find("<STX:3>001 <SRX:3>047 <MY_SIG:4>POTA <MY_SIG_INFO:7>TR-0042 <EOR>") != std::string::npos);
+    auto cback = adif::parse(crec);
+    CHECK(cback.size() == 1 && cback[0].stx == "001" && cback[0].srx == "047" && cback[0].potaRef == "TR-0042");
+    CHECK(adif::startUnix(c) == 1794573240LL);      // 2026-11-13 12:34 UTC
+    CHECK(adif::startUnix(empty) == 0);
 
     // --- Radio maths ---
     CHECK(near(radiomath::halfWaveDipoleM(14.2), 10.035, 0.01));

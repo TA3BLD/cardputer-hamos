@@ -6,6 +6,7 @@
 #include "core/App.h"
 #include "core/Log.h"
 #include "core/Net.h"
+#include "core/Rig.h"
 #include "core/Station.h"
 #include "core/Ui.h"
 #include "lib/Adif.h"
@@ -83,10 +84,38 @@ private:
         const auto& qsos = logbook::recent();
         in_[FREQ].value = qsos.empty() ? "14.200" : qsos.back().freq;
         in_[MODE].value = qsos.empty() ? "SSB" : qsos.back().mode;
+        if (rig::connected()) {             // the radio knows better than the last contact
+            in_[FREQ].value = rig::freqMhz();
+            if (!rig::mode().empty()) in_[MODE].value = rig::mode();
+        }
         defaultRst();
         field_ = CALL;
         editing_ = true;
         status_.clear();
+    }
+
+    static bool contest() { return config::get("contest", "0") == "1"; }
+
+    // Next serial number to send: one more than the highest one in the recent log.
+    static std::string nextSerial() {
+        int highest = 0;
+        for (const adif::Qso& q : logbook::recent())
+            if (atoi(q.stx.c_str()) > highest) highest = atoi(q.stx.c_str());
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%03d", highest + 1);
+        return buf;
+    }
+
+    // Contacts in the last 60 minutes.
+    static int lastHour() {
+        if (!net::timeValid()) return 0;
+        long long now = (long long)time(nullptr);
+        int n = 0;
+        for (const adif::Qso& q : logbook::recent()) {
+            long long t = adif::startUnix(q);
+            if (t && now - t >= 0 && now - t < 3600) n++;
+        }
+        return n;
     }
 
     // CW reports have a third (tone) digit. Only touches reports still at their default.
@@ -108,7 +137,13 @@ private:
         q.mode = in_[MODE].value;
         q.rstSent = in_[SENT].value;
         q.rstRcvd = in_[RCVD].value;
-        q.comment = in_[NOTE].value;
+        if (contest()) {                    // the last field is the number received; ours counts up
+            q.srx = in_[NOTE].value;
+            q.stx = nextSerial();
+        } else {
+            q.comment = in_[NOTE].value;
+        }
+        q.potaRef = config::get("pota_ref");
         if (net::timeValid()) {
             time_t now = time(nullptr);
             struct tm t;
@@ -128,7 +163,9 @@ private:
     void drawForm() {
         static const char* labels[FIELDS] = {"Callsign", "Freq MHz", "Mode", "RST sent", "RST rcvd", "Note"};
         ui::clearBody();
-        for (int i = 0; i < FIELDS; i++) ui::formRow(i, labels[i], in_[i].value, i == field_);
+        for (int i = 0; i < FIELDS; i++)
+            ui::formRow(i, (i == NOTE && contest()) ? "Nr rcvd" : labels[i], in_[i].value, i == field_);
+        if (contest()) ui::text(150, ui::BODY_Y + 2 + SENT * ui::ROW_H + 2, "send nr " + nextSerial(), ui::C_OK);
 
         // Line 1: country, distance and heading from the callsign prefix.
         const dxcc::Entity* e = dxcc::lookup(in_[CALL].value);
@@ -177,7 +214,13 @@ private:
         std::string hint;
         if (confirmDelete_) hint = "Delete " + qsos[qsos.size() - 1 - (size_t)selected_].call + "?  Y yes   any key no";
         else if (!status_.empty()) hint = status_;
-        else hint = "N new  D delete  " + std::to_string(logbook::total()) + " QSOs";
+        else if (contest()) {
+            hint = "N new  D del  " + std::to_string(logbook::total()) + " QSOs  " + std::to_string(lastHour()) + "/h";
+        } else {
+            hint = "N new  D delete  " + std::to_string(logbook::total()) + " QSOs";
+            if (!config::get("pota_ref").empty()) hint += "  " + config::get("pota_ref");
+            else if (rig::connected()) hint += "  RIG";
+        }
         ui::footer(hint.c_str());
     }
 

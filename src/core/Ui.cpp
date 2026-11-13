@@ -1,7 +1,9 @@
 #include "Ui.h"
 #include <M5Cardputer.h>
 #include <cmath>
+#include <cstring>
 #include <ctime>
+#include "AprsIs.h"
 #include "Gps.h"
 #include "Mesh.h"
 #include "Net.h"
@@ -9,6 +11,9 @@
 namespace ui {
 
 static auto& lcd() { return M5Cardputer.Display; }
+
+static std::string notice;
+void setNotice(const std::string& text) { notice = text; }
 
 void begin() {
     lcd().setRotation(1);
@@ -19,9 +24,10 @@ void begin() {
 void statusBar(const char* title) {
     lcd().fillRect(0, 0, W, STATUS_H, C_BAR);
     lcd().setTextSize(1);
-    lcd().setTextColor(C_TEXT, C_BAR);
+    lcd().setTextColor(notice.empty() ? C_TEXT : C_NOTICE, C_BAR);
     lcd().setTextDatum(middle_left);
-    lcd().drawString(title, 4, STATUS_H / 2);
+    lcd().drawString(notice.empty() ? title : notice.c_str(), 4, STATUS_H / 2);
+    lcd().setTextColor(C_TEXT, C_BAR);
 
     char right[48];
     char clock[8] = "--:--";
@@ -31,8 +37,12 @@ void statusBar(const char* title) {
         gmtime_r(&now, &t);
         snprintf(clock, sizeof(clock), "%02d:%02d", t.tm_hour, t.tm_min);
     }
-    char unread[8] = "";
+    char unread[12] = "";
     if (mesh::unread() > 0) snprintf(unread, sizeof(unread), " M%d", mesh::unread() > 99 ? 99 : mesh::unread());
+    if (aprsis::unread() > 0) {
+        size_t used = strlen(unread);
+        snprintf(unread + used, sizeof(unread) - used, " A%d", aprsis::unread() > 9 ? 9 : aprsis::unread());
+    }
     snprintf(right, sizeof(right), "%sz%s%s%s %d%%", clock, unread, gps::hasFix() ? " GPS" : "",
              net::connected() ? " WiFi" : "", (int)M5Cardputer.Power.getBatteryLevel());
     lcd().setTextDatum(middle_right);
@@ -119,6 +129,26 @@ std::string ascii(const std::string& in) {
         }
         i += len;
         while (i < in.size() && ((unsigned char)in[i] & 0xC0) == 0x80 && len == 1) i++;   // stray continuation bytes
+    }
+    return out;
+}
+
+std::vector<std::string> wrapLines(const std::string& text, size_t width) {
+    std::vector<std::string> out;
+    std::string line;
+    for (size_t i = 0; i <= text.size(); i++) {
+        bool end = i == text.size(), newline = !end && text[i] == '\n';
+        if (!end && !newline) line += text[i];
+        if (line.size() > width) {                  // too long: break at the last space, else mid-word
+            size_t space = line.rfind(' ', width);
+            size_t cut = (space == std::string::npos || space == 0) ? width : space + 1;
+            out.push_back(line.substr(0, cut));
+            line.erase(0, cut);
+        }
+        if (newline || (end && !line.empty())) {
+            out.push_back(line);
+            line.clear();
+        }
     }
     return out;
 }

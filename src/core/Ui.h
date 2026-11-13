@@ -15,10 +15,13 @@ constexpr int ROWS = BODY_H / ROW_H;
 // RGB565
 constexpr uint16_t C_BG = 0x0000, C_TEXT = 0xFFFF, C_DIM = 0x8410;
 constexpr uint16_t C_BAR = 0x0A66, C_FOOT = 0x1084, C_SEL = 0x04DF;
-constexpr uint16_t C_OK = 0x07E0, C_WARN = 0xFD20, C_ERR = 0xF800;
+constexpr uint16_t C_OK = 0x07E0, C_WARN = 0xFD20, C_ERR = 0xF800, C_NOTICE = 0xFFE0;
+// Note: always hand the display colours as uint16_t. M5GFX reads a plain int
+// as 24-bit RGB888, so "cond ? C_TEXT : 0xFFE0" would show the wrong colour.
 
 void begin();
 void statusBar(const char* title);          // title + UTC + WiFi + battery
+void setNotice(const std::string& text);    // shown in place of the title until cleared with ""
 void footer(const char* hint);
 void clearBody();
 void fill(int x, int y, int w, int h, uint16_t color);
@@ -29,6 +32,9 @@ void textOn(int x, int y, const std::string& s, uint16_t color, uint16_t backgro
 // their plain Latin form, other non-ASCII characters (emoji...) become '?'.
 std::string ascii(const std::string& utf8);
 void textCentered(int y, const std::string& s, uint16_t color = C_TEXT, float size = 1);
+// Breaks text into lines of at most `width` characters, at spaces where
+// possible; a newline in the text always starts a new line.
+std::vector<std::string> wrapLines(const std::string& text, size_t width);
 // Scrolling list; keeps `scroll` consistent with `selected`.
 void list(const std::vector<std::string>& items, int selected, int& scroll,
           const std::vector<uint16_t>* colors = nullptr);

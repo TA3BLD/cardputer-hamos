@@ -1,5 +1,6 @@
 #include "Mesh.h"
 #include <M5Cardputer.h>
+#include <esp_random.h>
 #include <deque>
 #include "Config.h"
 #include "Gps.h"
