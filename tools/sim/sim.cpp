@@ -419,6 +419,21 @@ int main() {
     }
     back();
 
+    // ---- Map: own position, APRS stations and mesh nodes, three levels of detail ----
+    openNext();
+    EXPECT(std::string(current->name()) == "Map");
+    shot("map");
+    key('g');                                  // Maidenhead grid on
+    key('-'); key('-'); key('-');              // 1200 km
+    shot("map-region");
+    key('g');
+    key('-'); key('-'); key('-');              // 10000 km
+    shot("map-world");
+    for (int i = 0; i < 6; i++) key('=');      // back to 150 km
+    tab(); tab();
+    shot("map-selected");
+    back();
+
     // ---- FT8: decode three stations, answer the CQ from DX1ABC, complete and log the contact ----
     openNext();                                // FT8 (fourth tile)
     {

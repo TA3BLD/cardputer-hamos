@@ -81,7 +81,8 @@ std::string displayable(const std::string& in) {
 // the built-in font, Turkish letters from the bitmaps above.
 static void drawRun(const std::string& s, int x, int y, float size, uint16_t fg, uint16_t bg, bool fillBg) {
     lcd().setTextSize(size);
-    lcd().setTextColor(fg, bg);
+    if (fillBg) lcd().setTextColor(fg, bg);
+    else lcd().setTextColor(fg);                // transparent background
     lcd().setTextDatum(top_left);
     float cell = 6 * size;
     std::string run;
@@ -202,6 +203,8 @@ std::string num(double v, int decimals) {
 void clearBody() { lcd().fillRect(0, BODY_Y, W, BODY_H, C_BG); }
 
 void text(int x, int y, const std::string& s, uint16_t color, float size) { drawText(s, x, y, size, LEFT, false, color, C_BG); }
+
+void textOver(int x, int y, const std::string& s, uint16_t color) { drawText(s, x, y, 1, LEFT, false, color, C_BG, false); }
 
 void textOn(int x, int y, const std::string& s, uint16_t color, uint16_t background) {
     drawText(s, x, y, 1, LEFT, false, color, background);

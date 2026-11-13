@@ -15,6 +15,7 @@ struct SimDisplay {
     void fillRect(int x, int y, int w, int h, int c) { printf("R %d %d %d %d %d\n", x, y, w, h, c); }
     void setTextSize(float s) { size = s; }
     void setTextColor(int f, int b) { fg = f; bg = b; }
+    void setTextColor(int f) { fg = f; bg = -1; }       // transparent background
     void setTextDatum(textdatum_t d) { datum = d; }
     void drawString(const char* s, int x, int y) { printf("T %d %d %g %d %d %d %s\n", x, y, size, datum, fg, bg, s); }
     void drawLine(int x0, int y0, int x1, int y1, uint16_t c) { printf("L %d %d %d %d %d\n", x0, y0, x1, y1, c); }

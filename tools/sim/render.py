@@ -31,7 +31,8 @@ def draw_text(img, x, y, size, datum, fg, bg, text):
     if datum in (2, 3, 4):       # centred vertically
         y -= ch / 2
     draw = ImageDraw.Draw(img)
-    draw.rectangle([int(x), int(y), int(x + width) - 1, int(y + ch) - 1], fill=rgb(bg))
+    if bg >= 0:
+        draw.rectangle([int(x), int(y), int(x + width) - 1, int(y + ch) - 1], fill=rgb(bg))
     for i, char in enumerate(text):
         code = ord(char) if 32 <= ord(char) <= 126 else ord("?")
         cols = FONT[(code - 32) * 5:(code - 32) * 5 + 5]
