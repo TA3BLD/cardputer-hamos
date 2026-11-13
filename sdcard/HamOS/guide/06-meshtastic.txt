@@ -1,0 +1,23 @@
+# Meshtastic
+
+Meshtastic, LoRa radyolarıyla internetsiz mesajlaşma ağıdır. Her cihaz duyduğu mesajları tekrarlayarak ağı genişletir. HamOS, LoRa başlığı takılıyken normal Meshtastic cihazları ve telefonlarla konuşur.
+
+## Varsayılanlar
+- Bölge EU_868, kanal LongFast, frekans 869.525 MHz
+- Genel kanal anahtarı (herkes okuyabilir)
+- En fazla 3 atlama (hop)
+
+## Özel kanal
+Meshtastic uygulamasında kanalın adını ve base64 anahtarını görün; HamOS Settings içinde Mesh channel ve Mesh key alanlarına aynısını yazın.
+
+## HamOS'ta neler var
+- Kanal mesajları, istasyon listesi (sinyal, atlama sayısı, mesafe, yön)
+- Mesajınızı başka bir cihaz tekrarlarsa yeşile döner: ağa ulaşmış demektir.
+- Konum paylaşımı varsayılan kapalıdır; açılırsa yaklaşık 3 km hassasiyetle gider.
+- HamOS başkalarının paketlerini tekrarlamaz (CLIENT_MUTE).
+
+## Lisans notu
+Meshtastic, lisanssız ISM bandında çalışır ve şifreleme kullanır. Amatör frekanslarda şifreli yayın yapılamaz; bu yüzden Meshtastic amatör telsiz faaliyeti sayılmaz. Avrupa'da 869.525 MHz'de saatlik yayın süresi %10 ile sınırlıdır; HamOS bunu sayar ve sınırda bekler.
+
+## LoRa modu
+Radyo aynı anda ya Meshtastic ya da LoRa-APRS çalıştırır. Seçim: Settings > LoRa mode (mesh veya aprs).

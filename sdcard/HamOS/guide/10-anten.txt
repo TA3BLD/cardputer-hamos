@@ -1,0 +1,19 @@
+# Anten ve SWR
+
+## Yarım dalga dipol
+Her bir kolun boyu yaklaşık 71,25 / f metre (f MHz). 14,2 MHz için toplam yaklaşık 10 m. Calculator > Antenna length hesaplar. Kabloyu biraz uzun kesip SWR ölçerek kısaltın.
+
+## Çeyrek dalga dikey
+Boy 71,25 / f metre ve radyal (toprak) telleri gerekir. 145 MHz için yaklaşık 49 cm.
+
+## SWR
+Antenin vericiye ne kadar uyumlu olduğunu gösterir. 1,5'in altı çok iyi, 2'ye kadar kabul edilebilir. Yüksek SWR'de verici gücünü düşürür ve kablo kaybı artar. Calculator > SWR from power ileri ve yansıyan güçten hesaplar.
+
+## Koaksiyel kayıplar (yaklaşık, 10 m kablo)
+- RG-58: 14 MHz'de 0,5 dB, 145 MHz'de 2 dB
+- RG-213: 14 MHz'de 0,2 dB, 145 MHz'de 0,8 dB
+- LMR-400: 145 MHz'de 0,5 dB
+VHF ve UHF'de kaliteli ve kısa kablo çok fark eder.
+
+## Güvenlik
+Antenleri elektrik hatlarından uzak kurun. Yıldırıma karşı topraklama yapın ve fırtınada kabloları çıkarın.

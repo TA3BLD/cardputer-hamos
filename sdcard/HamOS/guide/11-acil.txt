@@ -1,0 +1,21 @@
+# Acil durum haberleşmesi
+
+Afetlerde altyapı çöktüğünde amatör telsizciler haberleşmeye destek verir. Önceden hazırlık ve düzenli tatbikat şarttır.
+
+## IARU 1. Bölge acil durum aktivite merkezleri (MHz)
+3.760 - 7.110 - 14.300 - 18.160 - 21.360
+
+Bu frekanslarda acil durum trafiği varsa yayını bölmeyin ve mümkünse dinlemede kalın.
+
+## Hazırlık
+- Şarjlı piller, güneş paneli veya araç şarjı
+- Basit bir HF anteni (dipol) ve VHF el telsizi
+- Yerel röle frekansları ve ton değerleri (Repeaters uygulaması)
+- Kâğıt kalem ve kâğıt log
+- Yerel acil durum ağının ve ulusal amatör telsiz derneğinin planı
+
+## Mesaj
+Kısa ve net olun: kim, nerede, ne oldu, neye ihtiyaç var. Mesajları yazın, numaralayın ve okunduğunu teyit edin.
+
+## İnternetsiz araçlar
+Meshtastic ve LoRa-APRS, şebeke yokken kısa mesaj ve konum için kullanılabilir. HamOS'un harita, log ve rehberi internetsiz çalışır.

@@ -1,0 +1,20 @@
+# Mors kodu ve CW kısaltmaları
+
+## Öğrenme
+Koch yöntemi: işaretler baştan hedef hızda (örneğin 18 - 20 WPM) çalınır; önce iki harfle başlanır, %90 doğruluğa ulaşınca bir harf eklenir. Morse uygulamasının TRAIN sayfası böyle çalışır. Her gün 10 - 15 dakika, uzun ve seyrek çalışmadan daha etkilidir.
+
+## Sık kullanılan kısaltmalar
+- CQ: genel çağrı
+- DE: burası (çağrı işaretinden önce)
+- K: devam et, KN: yalnızca çağrılan istasyon devam etsin
+- AR: mesaj sonu, SK: QSO sonu
+- R: aldım, RST: sinyal raporu, 5NN: 599
+- TNX, TU: teşekkürler
+- FB: harika, OM: telsizci arkadaş, YL: bayan telsizci
+- UR: sizin, HR: burada, ES: ve, PSE: lütfen
+- AGN: tekrar, WX: hava, RIG: telsiz, ANT: anten, PWR: güç
+- CUL: görüşmek üzere, GM / GA / GE: günaydın / iyi öğleden sonralar / iyi akşamlar
+- 73: iyi dilekler, 88: sevgiler
+
+## Kısa bir CW QSO
+CQ CQ DE TA3BLD K ... TA3BLD DE DL1ABC K ... DL1ABC DE TA3BLD GM UR 599 599 NAME ALI QTH IZMIR HW? BK ... (bilgi alışverişi) ... TNX QSO 73 SK

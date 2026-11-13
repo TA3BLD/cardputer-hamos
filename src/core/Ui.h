@@ -28,9 +28,13 @@ void fill(int x, int y, int w, int h, uint16_t color);
 void tileLabel(int x, int yMiddle, const char* s, uint16_t bg);
 void text(int x, int y, const std::string& s, uint16_t color = C_TEXT, float size = 1);
 void textOn(int x, int y, const std::string& s, uint16_t color, uint16_t background);
-// Replaces everything the built-in font cannot show: Turkish letters become
-// their plain Latin form, other non-ASCII characters (emoji...) become '?'.
+// For fixed-width tables: Turkish letters become their plain Latin form,
+// other non-ASCII characters (emoji...) become '?'; one byte per letter.
 std::string ascii(const std::string& utf8);
+// For free text: keeps Turkish letters (drawn from built-in bitmaps) and line
+// breaks, replaces what cannot be shown with '?'.
+std::string displayable(const std::string& utf8);
+size_t glyphCount(const std::string& utf8);    // letters, not bytes
 void textCentered(int y, const std::string& s, uint16_t color = C_TEXT, float size = 1);
 // Breaks text into lines of at most `width` characters, at spaces where
 // possible; a newline in the text always starts a new line.

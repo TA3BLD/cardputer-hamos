@@ -1,0 +1,22 @@
+# Yayılım (propagasyon)
+
+HF sinyalleri iyonosferden yansıyarak uzak mesafelere gider. Yansıma, Güneş'in etkinliğine, günün saatine ve mevsime bağlıdır. Solar uygulaması güncel değerleri gösterir.
+
+## Göstergeler
+- SFI (güneş akısı): 70 düşük, 100 - 150 iyi, 150 üstü çok iyi. Yüksek SFI üst bantları (15, 12, 10 m) açar.
+- K indeksi: 0 - 2 sakin ve iyi, 3 dalgalı, 4 ve üstü manyetik fırtına; özellikle kutup yolları kapanır.
+- A indeksi: günlük ortalama; 10'un altı iyi.
+- SN: güneş lekesi sayısı.
+
+## Bantların karakteri
+- 160 ve 80 m: gece ve kışın uzak mesafe. Gündüz D tabakası sinyali yutar.
+- 40 m: gündüz yakın (Türkiye içi), gece uzak mesafe.
+- 30 ve 20 m: gündüzün çalışkan bantları; 20 m dünyanın her yerine açılır.
+- 17, 15, 12, 10 m: güneş etkinliği yüksekken gündüz mükemmel, düşükken kapalı olabilir.
+- 6 m: yazın sporadik E ile 1000 - 2000 km ani açılımlar.
+
+## Gri hat
+Gün doğumu ve gün batımı sırasında, alacakaranlık çizgisi boyunca alçak bantlarda sinyaller güçlenir. Solar uygulaması konumunuz için gün doğumu ve batımını gösterir.
+
+## VHF ve UHF
+Normalde görüş hattı kadardır. Yüksek basınç ve sıcaklık terslemesinde (troposferik yayılım) yüzlerce kilometreye ulaşabilir.

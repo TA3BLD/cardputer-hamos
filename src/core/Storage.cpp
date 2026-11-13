@@ -1,6 +1,7 @@
 #include "Storage.h"
 #include <SD.h>
 #include <SPI.h>
+#include <algorithm>
 
 namespace storage {
 
@@ -22,6 +23,46 @@ bool begin() {
 bool ready() { return isReady; }
 
 bool exists(const char* path) { return isReady && SD.exists(path); }
+
+std::vector<std::string> listFiles(const char* folder) {
+    std::vector<std::string> names;
+    if (!isReady) return names;
+    File dir = SD.open(folder);
+    if (!dir || !dir.isDirectory()) return names;
+    for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
+        if (!f.isDirectory()) {
+            std::string name = f.name();
+            size_t slash = name.rfind('/');                 // older cores return the whole path
+            names.push_back(slash == std::string::npos ? name : name.substr(slash + 1));
+        }
+        f.close();
+    }
+    dir.close();
+    std::sort(names.begin(), names.end());
+    return names;
+}
+
+size_t readAt(const char* path, uint32_t offset, void* buffer, size_t len) {
+    if (!isReady) return 0;
+    File f = SD.open(path);
+    if (!f) return 0;
+    size_t n = 0;
+    if (f.seek(offset)) {
+        int got = f.read((uint8_t*)buffer, len);
+        n = got > 0 ? (size_t)got : 0;
+    }
+    f.close();
+    return n;
+}
+
+uint32_t fileSize(const char* path) {
+    if (!isReady) return 0;
+    File f = SD.open(path);
+    if (!f) return 0;
+    uint32_t size = (uint32_t)f.size();
+    f.close();
+    return size;
+}
 
 bool remove(const char* path) { return isReady && SD.remove(path); }
 bool rename(const char* from, const char* to) { return isReady && SD.rename(from, to); }

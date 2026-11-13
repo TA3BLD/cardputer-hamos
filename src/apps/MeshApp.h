@@ -82,15 +82,10 @@ private:
     };
 
     static void wrap(const std::string& text, uint16_t color, std::vector<Line>& out) {
-        const size_t width = 38;
-        for (size_t pos = 0; pos < text.size();) {
-            size_t len = std::min(width, text.size() - pos);
-            if (pos + len < text.size()) {              // break at a space when there is one
-                size_t space = text.rfind(' ', pos + len);
-                if (space != std::string::npos && space > pos) len = space - pos + 1;
-            }
-            out.push_back({(pos ? "  " : "") + text.substr(pos, len), color});
-            pos += len;
+        bool first = true;
+        for (const std::string& part : ui::wrapLines(text, 38)) {
+            out.push_back({(first ? "" : "  ") + part, color});
+            first = false;
         }
     }
 
@@ -98,9 +93,9 @@ private:
         mesh::markRead();
         std::vector<Line> lines;
         for (const mesh::Message& m : mesh::messages()) {
-            std::string text = ui::ascii(m.text);
+            std::string text = ui::displayable(m.text);
             if (m.mine) wrap("> " + text, m.relayed ? ui::C_OK : m.sent ? ui::C_TEXT : ui::C_DIM, lines);
-            else wrap((m.direct ? "[DM] " : "") + ui::ascii(mesh::nodeName(m.from, true)) + ": " + text,
+            else wrap((m.direct ? "[DM] " : "") + ui::displayable(mesh::nodeName(m.from, true)) + ": " + text,
                       m.direct ? ui::C_WARN : 0xAEDC, lines);
         }
         const int rows = ui::ROWS - 1;                  // last row is the input line

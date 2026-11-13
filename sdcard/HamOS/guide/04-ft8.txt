@@ -1,0 +1,30 @@
+# FT8
+
+FT8, çok zayıf sinyallerle kısa ve standart QSO yapmak için tasarlanmış dijital moddur. Her iletim 15 saniyelik bir periyoda oturur ve 12,6 saniye sürer. 50 Hz genişliğinde 8 tonlu bir sinyaldir; WSJT-X gürültünün 21 dB altına kadar çözebilir.
+
+## Saat
+FT8 için saatiniz yarım saniye içinde doğru olmalıdır. HamOS saati WiFi (NTP) veya GPS'ten alır. Saat yanlışsa hiçbir şey çözülmez.
+
+## Frekanslar (USB, MHz)
+1.840 - 3.573 - 5.357 - 7.074 - 10.136 - 14.074 - 18.100 - 21.074 - 24.915 - 28.074 - 50.313 - 144.174
+
+## Bir QSO
+- O: CQ DX1ABC PK04 (çağrı ve konum)
+- Siz: DX1ABC TA3BLD KM38
+- O: TA3BLD DX1ABC -12 (sizi -12 dB duyuyor)
+- Siz: DX1ABC TA3BLD R-07 (aldım, onu -07 duyuyorsunuz)
+- O: TA3BLD DX1ABC RR73
+- Siz: DX1ABC TA3BLD 73 ve QSO loga yazılır
+
+Bir istasyon çift periyotlarda (00 ve 30. saniye) yayın yapıyorsa siz tek periyotlarda (15 ve 45) cevap verirsiniz. HamOS bunu kendi ayarlar.
+
+## HamOS'ta FT8
+- Telsizin hoparlörünü Cardputer'ın mikrofonuna yakın tutun. HamOS her periyodu çözer.
+- Listeden bir CQ seçip ENTER: cevap verir, QSO'yu sonuna kadar kendisi yürütür ve loga yazar.
+- C: CQ çağırır. H: durdurur. T: göndermeyi açar veya kapatır.
+- Gönderilen ses hoparlörden ve kulaklık çıkışından gelir. Kulaklık çıkışını telsizin mikrofon veya data girişine bağlayıp telsizi VOX ile çalıştırabilirsiniz.
+
+## Ses seviyesi
+Telsizin ALC göstergesi oynamayacak kadar düşük ses verin. Fazla ses sinyali bozar ve komşu frekansları kirletir. FT8 için 10 - 30 W çoğu zaman yeter.
+
+> Ses mikrofonla alındığında çözme hassasiyeti kablo bağlantısından düşüktür; ortam gürültüsünü azaltın.

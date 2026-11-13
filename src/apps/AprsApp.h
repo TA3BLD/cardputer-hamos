@@ -161,7 +161,7 @@ private:
         std::vector<std::string> lines;
         std::vector<uint16_t> colors;
         for (const aprsis::Message& m : all) {
-            std::string text = ui::ascii(m.mine ? "> " + m.to + ": " + m.text : m.from + ": " + m.text);
+            std::string text = ui::displayable(m.mine ? "> " + m.to + ": " + m.text : m.from + ": " + m.text);
             for (const std::string& part : ui::wrapLines(text, 38)) {
                 lines.push_back(part);
                 colors.push_back(m.mine ? (m.acked ? ui::C_OK : ui::C_TEXT) : 0xAEDC);

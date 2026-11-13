@@ -10,6 +10,7 @@
 #include "apps/Ft8App.h"
 #include "apps/WsjtxApp.h"
 #include "apps/GpsApp.h"
+#include "apps/GuideApp.h"
 #include "apps/Launcher.h"
 #include "apps/LocatorApp.h"
 #include "apps/LogbookApp.h"
@@ -51,10 +52,11 @@ static CalcApp calcApp;
 static MorseApp morseApp;
 static ClockApp clockApp;
 static ReferenceApp referenceApp;
+static GuideApp guideApp;
 static SettingsApp settingsApp;
 static const std::vector<App*> apps = {&logbookApp, &meshApp,     &aprsApp,      &ft8App,    &dxClusterApp, &wsjtxApp,
                                        &solarApp,   &satApp,      &gpsApp,       &digiApp,   &locatorApp,   &repeaterApp,
-                                       &calcApp,    &morseApp,    &clockApp,     &referenceApp, &settingsApp};
+                                       &calcApp,    &morseApp,    &clockApp,     &referenceApp, &guideApp,    &settingsApp};
 // -----------------------------------------------------------------------------
 
 static Launcher launcher(apps);

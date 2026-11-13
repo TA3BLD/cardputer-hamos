@@ -1,0 +1,28 @@
+# HamOS kullanımı
+
+HamOS, Cardputer ADV için amatör telsiz araç takımıdır. Açılışta uygulama kutucukları görünür; ok tuşlarıyla seçip ENTER ile açarsınız.
+
+## Tuşlar
+- ; . , / : yukarı, aşağı, sol, sağ (Fn ile veya Fn olmadan)
+- ENTER: aç, düzenle, kaydet, gönder
+- TAB: sonraki alan veya sayfa
+- ` (veya Fn + `): vazgeç, ana ekrana dön
+- Fn + ; ve Fn + . : metin yazılan ekranlarda kaydırma
+
+## Durum çubuğu
+Üst satırda UTC saat, okunmamış Meshtastic (M) ve APRS (A) mesajları, GPS, WiFi ve pil durumu görünür. Ekran bir dakika tuşa basılmazsa kararır; herhangi bir tuş geri açar.
+
+## İlk ayarlar
+Settings uygulamasında en az şunları girin:
+- Callsign: çağrı işaretiniz
+- Grid locator: konumunuz (örnek KM38nk). GPS varsa kendisi bulur.
+- UTC offset: yerel saat farkı (Türkiye için 3)
+- WiFi SSID ve şifre: saat, DX cluster, APRS-IS, güneş verisi için
+
+## SD kart
+Ayarlar, log, haritalar, bayraklar ve bu rehber SD karttaki /HamOS klasöründedir. Repodaki sdcard klasörünün içeriğini kartın köküne kopyalayın. Kart yoksa HamOS çalışır ama hiçbir şey kaydedilmez.
+
+## Web arayüzü
+Settings içinde Web UI = 1 yaparsanız telefon veya bilgisayardan log indirebilir, ayarları düzenleyebilir, Meshtastic mesajı gönderebilir ve yeni yazılım yükleyebilirsiniz. Ortak ağlarda mutlaka Web UI password belirleyin.
+
+> Bu rehberdeki frekans ve kurallar genel bilgidir. Lisans sınıfınızın ve ülkenizin yönetmeliği her zaman önce gelir.

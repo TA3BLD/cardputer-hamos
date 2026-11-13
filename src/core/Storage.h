@@ -1,6 +1,9 @@
 // SD card access. HamOS still boots without a card; data just doesn't persist.
 #pragma once
+#include <cstddef>
+#include <cstdint>
 #include <string>
+#include <vector>
 
 namespace storage {
 bool begin();
@@ -14,4 +17,9 @@ bool rename(const char* from, const char* to);
 // Streams a file in pieces so large files never have to fit in RAM.
 typedef void (*ChunkHandler)(const char* data, size_t len, void* user);
 bool readChunks(const char* path, ChunkHandler handler, void* user);
+// File names (no path) in a folder, sorted; folders are left out.
+std::vector<std::string> listFiles(const char* folder);
+// Reads `len` bytes at `offset`; returns the number read (0 on error).
+size_t readAt(const char* path, uint32_t offset, void* buffer, size_t len);
+uint32_t fileSize(const char* path);
 }

@@ -1,0 +1,21 @@
+# Amatör uydular
+
+Alçak yörüngedeki amatör uydular 10 - 15 dakika boyunca görünür ve el telsiziyle bile çalışılabilir. Satellites uygulaması geçiş zamanlarını, yönü ve Doppler kaymasını hesaplar.
+
+## Başlarken
+- Satellites içinde U ile yörünge verisini indirin (WiFi gerekir). Veri SD karta yazılır, sonra internetsiz çalışır. Bir iki haftada bir yenileyin.
+- Konumunuz (grid veya GPS) ve doğru saat gerekir.
+- Max sütunu en yüksek yükselme açısıdır; 20 derece üstü geçişler kolaydır.
+
+## Doppler
+Uydu yaklaşırken frekans yükselir, uzaklaşırken düşer: 2 m'de en çok yaklaşık 3,5 kHz, 70 cm'de 10 kHz. FM uydularında 70 cm tarafını geçiş boyunca birkaç adımda ayarlayın.
+
+## Bilinen uydular
+- ISS: 145.800 MHz (ses ve SSTV yayınları), APRS digipeater 145.825 MHz
+- SO-50: FM röle; çıkış 436.795 MHz, giriş 145.850 MHz (67 Hz ton)
+- QO-100: sabit yörüngede, Türkiye'den görünür; giriş 2.4 GHz, çıkış 10.489 GHz (özel donanım gerekir)
+
+> Uydular zamanla devre dışı kalabilir; güncel durum için AMSAT sayfalarına bakın.
+
+## Görgü kuralları
+FM uydularında kısa konuşun: çağrı işareti ve grid yeterlidir. Uyduyu duyamıyorsanız yayın yapmayın.

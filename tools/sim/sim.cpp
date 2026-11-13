@@ -230,6 +230,11 @@ int main() {
         w = ui::wrapLines("abcdefghijkl\nxy", 5);
         EXPECT(w.size() == 4 && w[0] == "abcde" && w[1] == "fghij" && w[2] == "kl" && w[3] == "xy");
         EXPECT(ui::wrapLines("", 10).empty() && ui::ascii("G\xc3\xbcnayd\xc4\xb1n \xf0\x9f\x98\x80") == "Gunaydin ?");
+        // Turkish letters count as one letter each, and survive; emoji do not.
+        w = ui::wrapLines("\xc3\xa7\xc4\x9f\xc4\xb1\xc3\xb6\xc5\x9f\xc3\xbc \xc3\x87\xc4\x9e\xc4\xb0\xc3\x96\xc5\x9e\xc3\x9c", 7);
+        EXPECT(w.size() == 2 && w[0] == "\xc3\xa7\xc4\x9f\xc4\xb1\xc3\xb6\xc5\x9f\xc3\xbc " && ui::glyphCount(w[1]) == 6);
+        EXPECT(ui::displayable("G\xc3\xbcnayd\xc4\xb1n \xf0\x9f\x98\x80\t!\r\nx") == "G\xc3\xbcnayd\xc4\xb1n ? !\nx");
+        EXPECT(ui::wrapLines("a\n\nb", 5).size() == 3);
     }
 
     // The node announces itself once the radio is up.
@@ -580,6 +585,15 @@ int main() {
     openNext();                                // Reference
     shot("reference");
     back();
+
+    openNext();                                // Guide
+    EXPECT(std::string(current->name()) == "Guide");
+    shot("guide");
+    key('.'); key('.'); enter();               // the band plan
+    key('.'); key('.'); key('.');
+    shot("guide-page");
+    for (int i = 0; i < 30; i++) key('/');     // page down to the end, never past it
+    back(); back();
 
     openNext();                                // Settings
     for (int i = 0; i < 20; i++) key('.');
