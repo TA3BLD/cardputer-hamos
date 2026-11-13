@@ -1,5 +1,4 @@
 #include "Config.h"
-#include <SD.h>
 #include <map>
 #include "Storage.h"
 
@@ -30,24 +29,11 @@ std::string serialize() {
 }
 
 void load() {
-    if (!storage::ready()) return;
-    File f = SD.open(kPath);
-    if (!f) return;
     std::string text;
-    while (f.available()) text += (char)f.read();
-    f.close();
-    parse(text);
+    if (storage::readFile(kPath, text)) parse(text);
 }
 
-bool save() {
-    if (!storage::ready()) return false;
-    SD.remove(kPath);
-    File f = SD.open(kPath, FILE_WRITE);
-    if (!f) return false;
-    f.print(serialize().c_str());
-    f.close();
-    return true;
-}
+bool save() { return storage::writeFile(kPath, serialize()); }
 
 std::string get(const std::string& key, const std::string& def) {
     auto it = values.find(key);

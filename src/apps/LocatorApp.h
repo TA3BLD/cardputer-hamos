@@ -8,7 +8,8 @@
 // Distance and beam heading between two Maidenhead locators.
 class LocatorApp : public App {
 public:
-    const char* name() const override { return "Locator / Bearing"; }
+    const char* name() const override { return "Locator"; }
+    uint16_t color() const override { return 0x07E0; }
 
     void onEnter() override {
         from_.maxLen = to_.maxLen = 6;

@@ -20,4 +20,37 @@ bool begin() {
 
 bool ready() { return isReady; }
 
+bool exists(const char* path) { return isReady && SD.exists(path); }
+
+bool readFile(const char* path, std::string& out) {
+    out.clear();
+    if (!isReady) return false;
+    File f = SD.open(path);
+    if (!f) return false;
+    uint8_t buf[256];
+    while (f.available()) {
+        int n = f.read(buf, sizeof(buf));
+        if (n <= 0) break;
+        out.append((const char*)buf, (size_t)n);
+    }
+    f.close();
+    return true;
+}
+
+static bool put(const char* path, const std::string& text, const char* mode) {
+    if (!isReady) return false;
+    File f = SD.open(path, mode);
+    if (!f) return false;
+    size_t written = f.write((const uint8_t*)text.data(), text.size());
+    f.close();
+    return written == text.size();
+}
+
+bool writeFile(const char* path, const std::string& text) {
+    if (isReady) SD.remove(path);
+    return put(path, text, FILE_WRITE);
+}
+
+bool appendFile(const char* path, const std::string& text) { return put(path, text, FILE_APPEND); }
+
 }  // namespace storage

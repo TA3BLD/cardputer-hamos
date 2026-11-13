@@ -11,6 +11,7 @@
 class ClockApp : public App {
 public:
     const char* name() const override { return "UTC Clock"; }
+    uint16_t color() const override { return 0xFD20; }
 
     void onTick(uint32_t nowMs) override {
         if (nowMs - lastMs_ >= 1000) {

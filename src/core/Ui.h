@@ -21,12 +21,19 @@ void begin();
 void statusBar(const char* title);          // title + UTC + WiFi + battery
 void footer(const char* hint);
 void clearBody();
+void fill(int x, int y, int w, int h, uint16_t color);
+void tileLabel(int x, int yMiddle, const char* s, uint16_t bg);
 void text(int x, int y, const std::string& s, uint16_t color = C_TEXT, float size = 1);
 void textCentered(int y, const std::string& s, uint16_t color = C_TEXT, float size = 1);
 // Scrolling list; keeps `scroll` consistent with `selected`.
 void list(const std::vector<std::string>& items, int selected, int& scroll);
 // Moves a list selection with the arrow keys. Returns true if it changed.
 bool listNav(const KeyEvent& k, int& selected, int count);
+
+// A labelled value on one line; the active one is highlighted and shows a cursor.
+void formRow(int row, const char* label, const std::string& value, bool active, uint16_t valueColor = C_TEXT);
+// Formats a number without trailing zeros ("14.2", "0.05", "inf").
+std::string num(double v, int decimals = 2);
 
 // Single-line text entry. Feed it key events while it is active.
 struct TextInput {

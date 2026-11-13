@@ -2,9 +2,12 @@
 #include <M5Cardputer.h>
 #include <vector>
 
+#include "apps/CalcApp.h"
 #include "apps/ClockApp.h"
 #include "apps/Launcher.h"
 #include "apps/LocatorApp.h"
+#include "apps/LogbookApp.h"
+#include "apps/MorseApp.h"
 #include "apps/ReferenceApp.h"
 #include "apps/SettingsApp.h"
 #include "core/Config.h"
@@ -13,11 +16,15 @@
 #include "core/Ui.h"
 
 // ---- App registry: add new apps here ---------------------------------------
+static LogbookApp logbookApp;
 static LocatorApp locatorApp;
+static CalcApp calcApp;
+static MorseApp morseApp;
 static ClockApp clockApp;
 static ReferenceApp referenceApp;
 static SettingsApp settingsApp;
-static const std::vector<App*> apps = {&locatorApp, &clockApp, &referenceApp, &settingsApp};
+static const std::vector<App*> apps = {&logbookApp, &locatorApp, &calcApp, &morseApp,
+                                       &clockApp, &referenceApp, &settingsApp};
 // -----------------------------------------------------------------------------
 
 static Launcher launcher(apps);

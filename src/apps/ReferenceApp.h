@@ -8,6 +8,7 @@
 class ReferenceApp : public App {
 public:
     const char* name() const override { return "Reference"; }
+    uint16_t color() const override { return 0xA254; }
 
     void onKey(const KeyEvent& k) override {
         if (k.tab || k.right()) page_ = (page_ + 1) % (int)pages().size();

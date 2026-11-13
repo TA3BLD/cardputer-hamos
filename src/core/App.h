@@ -23,6 +23,7 @@ class App {
 public:
     virtual ~App() {}
     virtual const char* name() const = 0;
+    virtual uint16_t color() const { return 0x04DF; }   // launcher tile accent (RGB565)
     virtual void onEnter() {}
     virtual void onExit() {}
     virtual void onKey(const KeyEvent&) {}

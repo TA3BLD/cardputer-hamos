@@ -1,5 +1,6 @@
 #include "Ui.h"
 #include <M5Cardputer.h>
+#include <cmath>
 #include <ctime>
 #include "Net.h"
 
@@ -40,6 +41,40 @@ void footer(const char* hint) {
     lcd().setTextColor(C_TEXT, C_FOOT);
     lcd().setTextDatum(middle_left);
     lcd().drawString(hint, 4, H - FOOTER_H / 2 - 1);
+}
+
+void fill(int x, int y, int w, int h, uint16_t color) { lcd().fillRect(x, y, w, h, color); }
+
+void tileLabel(int x, int yMiddle, const char* s, uint16_t bg) {
+    lcd().setTextSize(1.5);
+    lcd().setTextColor(C_TEXT, bg);
+    lcd().setTextDatum(middle_left);
+    lcd().drawString(s, x, yMiddle);
+}
+
+void formRow(int row, const char* label, const std::string& value, bool active, uint16_t valueColor) {
+    int y = BODY_Y + 2 + row * ROW_H;
+    uint16_t bg = active ? C_FOOT : C_BG;
+    lcd().fillRect(0, y, W, ROW_H, bg);
+    lcd().setTextSize(1);
+    lcd().setTextDatum(middle_left);
+    lcd().setTextColor(active ? C_SEL : C_DIM, bg);
+    lcd().drawString(label, 6, y + ROW_H / 2);
+    lcd().setTextColor(valueColor, bg);
+    lcd().drawString((value + (active ? "_" : "")).c_str(), 84, y + ROW_H / 2);
+}
+
+std::string num(double v, int decimals) {
+    if (std::isnan(v)) return "-";
+    if (std::isinf(v)) return "inf";
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.*f", decimals, v);
+    std::string s = buf;
+    if (s.find('.') != std::string::npos) {
+        while (s.back() == '0') s.pop_back();
+        if (s.back() == '.') s.pop_back();
+    }
+    return s;
 }
 
 void clearBody() { lcd().fillRect(0, BODY_Y, W, BODY_H, C_BG); }

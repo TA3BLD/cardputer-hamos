@@ -10,6 +10,7 @@
 class SettingsApp : public App {
 public:
     const char* name() const override { return "Settings"; }
+    uint16_t color() const override { return 0x8410; }
 
     void onEnter() override {
         editing_ = false;
@@ -81,6 +82,9 @@ private:
             {"utc_offset", "UTC offset (h)", "3", 5, false, false, false},
             {"wifi_ssid", "WiFi SSID", "", 32, false, false, true},
             {"wifi_pass", "WiFi password", "", 63, false, true, true},
+            {"cw_wpm", "CW speed WPM", "18", 2, false, false, false},
+            {"cw_tone", "CW tone Hz", "700", 4, false, false, false},
+            {"koch_level", "Koch level", "2", 2, false, false, false},
         };
         return f;
     }
