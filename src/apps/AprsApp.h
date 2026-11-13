@@ -5,6 +5,8 @@
 #include <vector>
 #include "core/App.h"
 #include "core/AprsIs.h"
+#include "core/Flags.h"
+#include "lib/Dxcc.h"
 #include "core/Audio.h"
 #include "core/LoraAprs.h"
 #include "core/Station.h"
@@ -142,7 +144,10 @@ private:
         }
         if (selected_ >= (int)list.size()) selected_ = (int)list.size() - 1;
         ui::list(rows, selected_, scroll_, &colors);
-        std::string hint = !status_.empty() ? status_ : ui::ascii(list[(size_t)selected_].comment);
+        for (int i = 0; i < ui::ROWS && scroll_ + i < (int)list.size(); i++)
+            if (const dxcc::Entity* e = dxcc::lookup(list[(size_t)(scroll_ + i)].call.substr(0, list[(size_t)(scroll_ + i)].call.find('-'))))
+                flags::drawSmall(e->iso, 6 + 34 * 6, ui::BODY_Y + i * ui::ROW_H + 1);
+        std::string hint = !status_.empty() ? status_ : ui::displayable(list[(size_t)selected_].comment);
         if (hint.empty()) hint = maidenhead::fromLatLon(list[(size_t)selected_].lat, list[(size_t)selected_].lon);
         if (hint.size() > 39) hint.resize(39);
         ui::footer(hint.c_str());

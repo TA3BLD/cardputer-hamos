@@ -6,6 +6,7 @@
 #include <vector>
 #include "core/App.h"
 #include "core/Config.h"
+#include "core/Flags.h"
 #include "core/Log.h"
 #include "core/Net.h"
 #include "core/Ui.h"
@@ -88,12 +89,15 @@ public:
             std::vector<uint16_t> colors;
             char line[64];
             for (const Row* r : rows) {
-                snprintf(line, sizeof(line), "%8.1f %-10.10s %-13.13s %.4s", r->spot.khz, r->spot.call.c_str(),
+                snprintf(line, sizeof(line), "%8.1f %-10.10s    %-10.10s %.4s", r->spot.khz, r->spot.call.c_str(),
                          r->entity ? r->entity->name : "", r->spot.time.c_str());
                 text.push_back(line);
                 colors.push_back(r->isNew ? ui::C_WARN : ui::C_TEXT);
             }
             ui::list(text, selected_, scroll_, &colors);
+            for (int i = 0; i < ui::ROWS && scroll_ + i < (int)rows.size(); i++)
+                if (rows[(size_t)(scroll_ + i)]->entity)
+                    flags::drawSmall(rows[(size_t)(scroll_ + i)]->entity->iso, 6 + 20 * 6, ui::BODY_Y + i * ui::ROW_H + 1);
         }
         std::string hint;
         if (!rows.empty()) {

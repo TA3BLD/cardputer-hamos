@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Flags.h"
 #include "core/Log.h"
 #include "core/Net.h"
 #include "core/Rig.h"
@@ -178,7 +179,8 @@ private:
                          maidenhead::bearingDeg(lat, lon, e->lat, e->lon));
                 where += buf;
             }
-            ui::text(6, ui::BODY_Y + 77, where, logbook::workedEntity(e) ? ui::C_TEXT : ui::C_SEL);
+            flags::drawSmall(e->iso, 6, ui::BODY_Y + 76);
+            ui::text(26, ui::BODY_Y + 77, where, logbook::workedEntity(e) ? ui::C_TEXT : ui::C_SEL);
             if (!logbook::workedEntity(e)) ui::text(ui::W - 30, ui::BODY_Y + 77, "NEW", ui::C_SEL);
         }
         // Line 2: band and warnings.

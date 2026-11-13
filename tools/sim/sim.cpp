@@ -595,6 +595,14 @@ int main() {
     for (int i = 0; i < 30; i++) key('/');     // page down to the end, never past it
     back(); back();
 
+    openNext();                                // Countries
+    EXPECT(std::string(current->name()) == "Countries");
+    key('t'); key('.'); key('.');
+    shot("countries");
+    key('j'); enter();                         // the first country starting with J
+    shot("country");
+    back(); back();
+
     openNext();                                // Settings
     for (int i = 0; i < 20; i++) key('.');
     shot("settings");

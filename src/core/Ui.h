@@ -25,6 +25,14 @@ void setNotice(const std::string& text);    // shown in place of the title until
 void footer(const char* hint);
 void clearBody();
 void fill(int x, int y, int w, int h, uint16_t color);
+void line(int x0, int y0, int x1, int y1, uint16_t color);
+void pixel(int x, int y, uint16_t color);
+void circle(int x, int y, int r, uint16_t color, bool filled = false);
+void triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t color);
+void frame(int x, int y, int w, int h, uint16_t color);        // rectangle outline
+// RGB565 pixels stored high byte first (as in the files on the SD card).
+// `data` must be 2-byte aligned.
+void image(int x, int y, int w, int h, const uint16_t* data);
 void tileLabel(int x, int yMiddle, const char* s, uint16_t bg);
 void text(int x, int y, const std::string& s, uint16_t color = C_TEXT, float size = 1);
 void textOn(int x, int y, const std::string& s, uint16_t color, uint16_t background);

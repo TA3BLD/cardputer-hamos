@@ -7,6 +7,7 @@
 #include "core/App.h"
 #include "core/Audio.h"
 #include "core/Config.h"
+#include "core/Flags.h"
 #include "core/Log.h"
 #include "core/Net.h"
 #include "core/Rig.h"
@@ -158,7 +159,7 @@ public:
         std::vector<uint16_t> colors;
         for (const Line& l : lines_) {
             if (l.mine) snprintf(line, sizeof(line), "TX   %4.0f %s", txHz_, l.text.c_str());
-            else snprintf(line, sizeof(line), "%+3d %4.0f %-19.19s %.9s", l.snr, l.freq, l.text.c_str(), l.country.c_str());
+            else snprintf(line, sizeof(line), "%+3d %4.0f %-19.19s    %.6s", l.snr, l.freq, l.text.c_str(), l.country.c_str());
             rows.push_back(line);
             colors.push_back(l.mine ? ui::C_NOTICE : l.toMe ? ui::C_OK : (l.cq && l.newCountry) ? ui::C_WARN
                              : l.cq ? ui::C_TEXT : ui::C_DIM);
@@ -169,6 +170,9 @@ public:
             ui::textCentered(ui::BODY_Y + 62, "Microphone next to the receiver's speaker", ui::C_DIM);
         } else {
             ui::list(rows, selected_, scroll_, &colors, ui::BODY_Y + 20, 6);
+            for (int i = 0; i < 6 && scroll_ + i < (int)lines_.size(); i++)
+                if (!lines_[(size_t)(scroll_ + i)].iso.empty())
+                    flags::drawSmall(lines_[(size_t)(scroll_ + i)].iso.c_str(), 6 + 29 * 6, ui::BODY_Y + 20 + i * ui::ROW_H + 1);
         }
 
         // Bottom line: what will be sent.
@@ -194,7 +198,7 @@ public:
 
 private:
     struct Line {
-        std::string text, country;
+        std::string text, country, iso;
         int snr = 0;
         float freq = 0;
         long long period = 0;
@@ -279,6 +283,7 @@ private:
             const dxcc::Entity* e = dxcc::lookup(l.from);
             if (e) {
                 l.country = e->name;
+                l.iso = e->iso;
                 l.newCountry = !logbook::workedEntity(e);
             }
             addLine(l);

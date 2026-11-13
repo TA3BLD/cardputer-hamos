@@ -17,6 +17,19 @@ struct SimDisplay {
     void setTextColor(int f, int b) { fg = f; bg = b; }
     void setTextDatum(textdatum_t d) { datum = d; }
     void drawString(const char* s, int x, int y) { printf("T %d %d %g %d %d %d %s\n", x, y, size, datum, fg, bg, s); }
+    void drawLine(int x0, int y0, int x1, int y1, uint16_t c) { printf("L %d %d %d %d %d\n", x0, y0, x1, y1, c); }
+    void drawPixel(int x, int y, uint16_t c) { printf("L %d %d %d %d %d\n", x, y, x, y, c); }
+    void drawCircle(int x, int y, int r, uint16_t c) { printf("C %d %d %d %d 0\n", x, y, r, c); }
+    void fillCircle(int x, int y, int r, uint16_t c) { printf("C %d %d %d %d 1\n", x, y, r, c); }
+    void fillTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t c) { printf("G %d %d %d %d %d %d %d\n", x0, y0, x1, y1, x2, y2, c); }
+    void drawRect(int x, int y, int w, int h, uint16_t c) { printf("F %d %d %d %d %d\n", x, y, w, h, c); }
+    void setSwapBytes(bool) {}
+    void pushImage(int x, int y, int w, int h, const uint16_t* data) {
+        printf("I %d %d %d %d ", x, y, w, h);
+        const uint8_t* b = (const uint8_t*)data;               // bytes as stored: high byte first
+        for (int i = 0; i < w * h * 2; i++) printf("%02x", b[i]);
+        printf("\n");
+    }
 };
 
 // Keyboard: the script queues key states; each isChange() call moves on to the

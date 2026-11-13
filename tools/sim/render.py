@@ -56,6 +56,33 @@ def main(ops_path, out_dir):
         elif kind == "T":
             x, y, size, datum, fg, bg, text = (rest.split(" ", 6) + [""])[:7]
             draw_text(img, int(x), int(y), float(size), int(datum), int(fg), int(bg), text)
+        elif kind == "L":
+            x0, y0, x1, y1, c = map(int, rest.split())
+            ImageDraw.Draw(img).line([x0, y0, x1, y1], fill=rgb(c))
+        elif kind == "C":
+            x, y, r, c, filled = map(int, rest.split())
+            box = [x - r, y - r, x + r, y + r]
+            if filled:
+                ImageDraw.Draw(img).ellipse(box, fill=rgb(c))
+            else:
+                ImageDraw.Draw(img).ellipse(box, outline=rgb(c))
+        elif kind == "G":
+            x0, y0, x1, y1, x2, y2, c = map(int, rest.split())
+            ImageDraw.Draw(img).polygon([(x0, y0), (x1, y1), (x2, y2)], fill=rgb(c))
+        elif kind == "F":
+            x, y, w, h, c = map(int, rest.split())
+            if w > 0 and h > 0:
+                ImageDraw.Draw(img).rectangle([x, y, x + w - 1, y + h - 1], outline=rgb(c))
+        elif kind == "I":
+            x, y, w, h, data = rest.split()
+            x, y, w, h = int(x), int(y), int(w), int(h)
+            raw = bytes.fromhex(data)
+            px = img.load()
+            for j in range(h):
+                for i in range(w):
+                    if 0 <= x + i < W and 0 <= y + j < H:
+                        k = 2 * (j * w + i)
+                        px[x + i, y + j] = rgb(raw[k] << 8 | raw[k + 1])
         elif kind == "S":
             big = img.resize((W * SCALE, H * SCALE), Image.NEAREST)
             big.save(os.path.join(out_dir, "%02d-%s.png" % (len(shots) + 1, rest)))

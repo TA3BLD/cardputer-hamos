@@ -162,6 +162,19 @@ void footer(const char* hint) {
 }
 
 void fill(int x, int y, int w, int h, uint16_t color) { lcd().fillRect(x, y, w, h, color); }
+void line(int x0, int y0, int x1, int y1, uint16_t color) { lcd().drawLine(x0, y0, x1, y1, color); }
+void pixel(int x, int y, uint16_t color) { lcd().drawPixel(x, y, color); }
+void circle(int x, int y, int r, uint16_t color, bool filled) {
+    if (filled) lcd().fillCircle(x, y, r, color);
+    else lcd().drawCircle(x, y, r, color);
+}
+void triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t color) { lcd().fillTriangle(x0, y0, x1, y1, x2, y2, color); }
+void frame(int x, int y, int w, int h, uint16_t color) { lcd().drawRect(x, y, w, h, color); }
+void image(int x, int y, int w, int h, const uint16_t* data) {
+    // With byte swapping off, M5GFX reads uint16_t pixel data as high byte first.
+    lcd().setSwapBytes(false);
+    lcd().pushImage(x, y, w, h, data);
+}
 
 void tileLabel(int x, int yMiddle, const char* s, uint16_t bg) { drawText(s, x, yMiddle, 1.5, LEFT, true, C_TEXT, bg); }
 
