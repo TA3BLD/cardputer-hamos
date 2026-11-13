@@ -212,7 +212,7 @@ for osr in (2, 1):
             for fl in false:
                 print("   FALSE DECODE %r" % fl)
         print("   SNR %+3d dB: %3d%% (%d of %d)" % (snr, 100 * hits // total, hits, total))
-        if snr >= -15 and hits < total * 0.9:
+        if snr >= (-15 if osr == 2 else -13) and hits < total * 0.9:
             failures += 1
     print("   SNR report error: mean %+.1f dB, spread %.1f dB, false decodes %d" %
           (np.mean(snr_err), np.std(snr_err), total_false))

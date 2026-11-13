@@ -160,17 +160,18 @@ void textCentered(int y, const std::string& s, uint16_t color, float size) {
     lcd().drawString(s.c_str(), W / 2, y);
 }
 
-void list(const std::vector<std::string>& items, int selected, int& scroll, const std::vector<uint16_t>* colors) {
+void list(const std::vector<std::string>& items, int selected, int& scroll, const std::vector<uint16_t>* colors, int top,
+          int rows) {
     if (selected < scroll) scroll = selected;
-    if (selected >= scroll + ROWS) scroll = selected - ROWS + 1;
+    if (selected >= scroll + rows) scroll = selected - rows + 1;
     if (scroll < 0) scroll = 0;
-    clearBody();
+    lcd().fillRect(0, top, W, rows * ROW_H, C_BG);
     lcd().setTextSize(1);
     lcd().setTextDatum(middle_left);
-    for (int row = 0; row < ROWS; row++) {
+    for (int row = 0; row < rows; row++) {
         int i = scroll + row;
         if (i >= (int)items.size()) break;
-        int y = BODY_Y + row * ROW_H;
+        int y = top + row * ROW_H;
         uint16_t bg = (i == selected) ? C_SEL : C_BG;
         if (i == selected) lcd().fillRect(0, y, W, ROW_H, bg);
         lcd().setTextColor(colors && i < (int)colors->size() ? (*colors)[i] : C_TEXT, bg);

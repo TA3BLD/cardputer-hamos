@@ -1,0 +1,13 @@
+DEBUG line p24 RX CQ DX1ABC PK04
+DEBUG line p24 RX CQ JA1ABC PM95
+DEBUG line p24 RX TA1ABC DL1XYZ -05
+DEBUG line p25 TX DX1ABC TA3BLD KM38
+DEBUG line p26 RX CQ JA1ABC PM95
+DEBUG line p26 RX TA3BLD DX1ABC -10
+DEBUG line p27 TX DX1ABC TA3BLD R-08
+DEBUG line p29 TX DX1ABC TA3BLD R-08
+DEBUG step 4 txEnabled 1 parity 1 period 29 status '' msg 'DX1ABC TA3BLD R-08' unanswered 2
+SIM CHECK FAILED line 405: sent.size() == 1 && sent[0] == "DX1ABC TA3BLD 73"
+SIM CHECK FAILED line 407: log.find("<CALL:6>DX1ABC") != std::string::npos && log.find("<MODE:3>FT8") != std::string::npos && log.find("<RST_RCVD:3>-10") != std::string::npos && log.find("<GRIDSQUARE:4>PK04") != std::string::npos
+SIM CHECK FAILED line 413: decodeSpeaker().empty()
+3 simulator checks FAILED

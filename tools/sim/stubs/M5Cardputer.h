@@ -58,23 +58,32 @@ struct SimSpeaker {
     }
 };
 
-// Microphone: plays back whatever the script queued, silence otherwise.
+// Microphone: plays back whatever the script queued, silence otherwise, at
+// the real sample rate in simulated time. Like the DMA buffers of the real
+// driver it holds only a little audio: unread samples older than that are lost.
 inline std::deque<int16_t> sim_mic;
 struct SimMicConfig { uint32_t sample_rate = 16000; };
 struct SimMic {
     SimMicConfig cfg;
+    uint32_t startMs = 0;
+    uint64_t delivered = 0;
     SimMicConfig config() { return cfg; }
     void config(const SimMicConfig& c) { cfg = c; }
-    bool begin() { return true; }
+    bool begin() { startMs = sim_ms; delivered = 0; return true; }
     void end() {}
-    bool record(int16_t* out, size_t n, uint32_t) {
+    bool record(int16_t* out, size_t n, uint32_t rate) {
+        uint64_t due = (uint64_t)(sim_ms - startMs) * rate / 1000;
+        if (due > delivered + 4 * n) delivered = due - 4 * n;      // buffer overrun: drop the oldest
+        if (delivered + n > due) return false;
         for (size_t i = 0; i < n; i++) {
             out[i] = sim_mic.empty() ? 0 : sim_mic.front();
             if (!sim_mic.empty()) sim_mic.pop_front();
         }
+        delivered += n;
         return true;
     }
 };
+
 struct SimConfig {};
 struct SimI2C {
     bool scanID(uint8_t, uint32_t) { return true; }

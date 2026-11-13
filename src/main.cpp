@@ -8,6 +8,7 @@
 #include "apps/DigiApp.h"
 #include "apps/DxClusterApp.h"
 #include "apps/Ft8App.h"
+#include "apps/WsjtxApp.h"
 #include "apps/GpsApp.h"
 #include "apps/Launcher.h"
 #include "apps/LocatorApp.h"
@@ -38,6 +39,7 @@ static MeshApp meshApp;
 static AprsApp aprsApp;
 static DxClusterApp dxClusterApp;
 static Ft8App ft8App;
+static WsjtxApp wsjtxApp;
 static SolarApp solarApp;
 static SatApp satApp;
 static GpsApp gpsApp;
@@ -49,9 +51,9 @@ static MorseApp morseApp;
 static ClockApp clockApp;
 static ReferenceApp referenceApp;
 static SettingsApp settingsApp;
-static const std::vector<App*> apps = {&logbookApp, &meshApp,  &aprsApp,     &dxClusterApp, &ft8App,     &solarApp,
-                                       &satApp,     &gpsApp,   &digiApp,     &locatorApp,   &repeaterApp, &calcApp,
-                                       &morseApp,   &clockApp, &referenceApp, &settingsApp};
+static const std::vector<App*> apps = {&logbookApp, &meshApp,     &aprsApp,      &ft8App,    &dxClusterApp, &wsjtxApp,
+                                       &solarApp,   &satApp,      &gpsApp,       &digiApp,   &locatorApp,   &repeaterApp,
+                                       &calcApp,    &morseApp,    &clockApp,     &referenceApp, &settingsApp};
 // -----------------------------------------------------------------------------
 
 static Launcher launcher(apps);

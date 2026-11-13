@@ -7,11 +7,15 @@
 #include <WiFiUdp.h>
 #include "core/Log.h"
 #include "lib/Aprs.h"
+#include "lib/Ft8.h"
+#include "lib/Ft8Decoder.h"
 #include "lib/Meshtastic.h"
 #include "lib/Wsjtx.h"
 #include "mbedtls/aes.h"
 
 uint32_t sim_ms = 1000;
+static long long sim_epoch_ms = (long long)time(nullptr) / 15 * 15000;     // a period boundary
+long long sim_utc_ms() { return sim_epoch_ms + sim_ms; }
 static int failures = 0;
 #define EXPECT(cond) do { if (!(cond)) { fprintf(stderr, "SIM CHECK FAILED line %d: %s\n", __LINE__, #cond); failures++; } } while (0)
 
@@ -44,6 +48,63 @@ static void run(int ms = 60) {
 }
 
 // ---- microphone: queue audio and let the app consume all of it ----
+// ---- FT8 over the air: 15 s periods ----
+static void runUntilPeriodEnd() {          // stop 20 ms before the next period starts
+    while (sim_utc_ms() % 15000 < 14980) run(10);
+}
+static std::vector<int16_t> ft8Period(const std::vector<std::pair<float, std::string>>& signals, double snrDb) {
+    std::vector<double> mix(15 * 8000, 0.0);
+    double noiseSigma = 900;
+    double amp = std::sqrt(2 * noiseSigma * noiseSigma * 2500.0 / 4000.0 * std::pow(10.0, snrDb / 10));
+    for (const auto& sig : signals) {
+        uint8_t p[10], t[ft8::kSymbols];
+        ft8::pack(sig.second, p);
+        ft8::tones(p, t);
+        ft8::Synth synth(t, sig.first, 8000, (int)amp, 0.5f);
+        int16_t buf[512];
+        size_t pos = 0;
+        for (size_t n; (n = synth.read(buf, 512)) > 0;)
+            for (size_t i = 0; i < n && pos < mix.size(); i++) mix[pos++] += buf[i];
+    }
+    std::vector<int16_t> out;
+    for (double v : mix) {
+        double g = 0;                                   // roughly Gaussian noise
+        for (int i = 0; i < 12; i++) g += (double)rand() / RAND_MAX;
+        out.push_back((int16_t)std::max(-32767.0, std::min(32767.0, v + (g - 6) * noiseSigma)));
+    }
+    return out;
+}
+static void hearPeriod(const std::vector<std::pair<float, std::string>>& signals, double snrDb = -8) {
+    runUntilPeriodEnd();
+    std::vector<int16_t> audio = ft8Period(signals, snrDb);
+    sim_mic.insert(sim_mic.end(), audio.begin(), audio.end());
+    run(15000);
+}
+// What HamOS sent through the speaker during the last period, decoded.
+static std::vector<std::string> decodeSpeaker() {
+    std::vector<int16_t> audio = sim_speaker;
+    audio.resize(15 * 8000, 0);
+    sim_speaker.clear();
+    ft8::Decoder d;
+    d.begin(2);
+    ft8::Resampler r;
+    for (size_t i = 0; i < audio.size(); i += 256) {
+        int16_t out[256];
+        d.feed(out, r.process(audio.data() + i, 256, out));
+    }
+    std::vector<ft8::Decoded> found;
+    d.startDecode();
+    while (d.step(found)) {}
+    std::vector<std::string> texts;
+    for (const auto& f : found) texts.push_back(f.text);
+    return texts;
+}
+static bool contains(const std::vector<std::string>& v, const std::string& prefix) {
+    for (const std::string& s : v)
+        if (s.compare(0, prefix.size(), prefix) == 0) return true;
+    return false;
+}
+
 static void hear(const std::vector<int16_t>& audio, double gain = 0.3, int noise = 400) {
     for (int16_t v : audio) sim_mic.push_back((int16_t)(v * gain + rand() % (2 * noise) - noise));
     while (!sim_mic.empty()) run(10);
@@ -312,6 +373,44 @@ int main() {
     }
     back();
 
+    // ---- FT8: decode three stations, answer the CQ from DX1ABC, complete and log the contact ----
+    openNext();                                // FT8 (fourth tile)
+    {
+        sim_speaker.clear();
+        // Period A: three stations; DX1ABC (a country not in the log) calls CQ.
+        hearPeriod({{1210.0f, "CQ DX1ABC PK04"}, {812.5f, "TA1ABC DL1XYZ -05"}, {2015.0f, "CQ JA1ABC PM95"}}, -8);
+        run(400);
+        EXPECT(ft8App.selectForTest("CQ DX1ABC"));
+        run(20);
+        printf("S ft8-decodes\n");
+        enter();                               // answer at once: this period is the other half of the minute
+        runUntilPeriodEnd();
+        std::vector<std::string> sent = decodeSpeaker();
+        EXPECT(sent.size() == 1 && sent[0] == "DX1ABC TA3BLD KM38");
+        // Period C: DX1ABC sends a report; HamOS answers with R and its report.
+        hearPeriod({{1210.0f, "TA3BLD DX1ABC -10"}, {2015.0f, "CQ JA1ABC PM95"}}, -9);
+        runUntilPeriodEnd();
+        run(15000);
+        sent = decodeSpeaker();
+        EXPECT(sent.size() == 1 && contains(sent, "DX1ABC TA3BLD R-"));
+        printf("S ft8-qso\n");                // (no shot(): it would move the clock into the next period)
+        // Period E: RR73 from DX1ABC; HamOS sends 73 and logs the contact.
+        hearPeriod({{1210.0f, "TA3BLD DX1ABC RR73"}}, -9);
+        runUntilPeriodEnd();
+        run(15000);
+        sent = decodeSpeaker();
+        EXPECT(sent.size() == 1 && sent[0] == "DX1ABC TA3BLD 73");
+        std::string log = readSd("/HamOS/log.adi");
+        EXPECT(log.find("<CALL:6>DX1ABC") != std::string::npos && log.find("<MODE:3>FT8") != std::string::npos &&
+               log.find("<RST_RCVD:3>-10") != std::string::npos && log.find("<GRIDSQUARE:4>PK04") != std::string::npos);
+        // Nothing more is sent once the contact is complete.
+        hearPeriod({}, -9);
+        runUntilPeriodEnd();
+        run(15000);
+        EXPECT(decodeSpeaker().empty());
+    }
+    back();
+
     sim_net[kClusterHost].inject("login: \r\nHello TA3BLD\r\n"
                                  "DX de EA5XX:     14025.0  JA1ABC       CW 599 up 1                    1104Z\r\n"
                                  "DX de DL2ABC:    21074.0  PY2XYZ       FT8 -12dB                      1105Z\r\n"
@@ -348,11 +447,11 @@ int main() {
                 "<rst_rcvd:3>-09 <qso_date:8>20261113 <time_on:6>115800 <band:3>20m <freq:9>14.075500 <EOR>");
         sim_udp.push_back(lg.out);
     }
-    openNext();                                // FT8
+    openNext();                                // WSJT-X companion
     run(300);
-    EXPECT(wsjtxlink::decodes().size() == 7 && wsjtxlink::logged() == 1 && logbook::total() == 6);
+    EXPECT(wsjtxlink::decodes().size() == 7 && wsjtxlink::logged() == 1 && logbook::total() == 7);
     EXPECT(readSd("/HamOS/log.adi").find("<CALL:6>LU5ABC <QSO_DATE:8>20261113 <TIME_ON:4>1158 <FREQ:9>14.075500 <BAND:3>20m <MODE:3>FT8") != std::string::npos);
-    shot("ft8");
+    shot("wsjtx");
     back();
 
     sim_http["hamqsl.com"] =

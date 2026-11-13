@@ -37,7 +37,7 @@ void textCentered(int y, const std::string& s, uint16_t color = C_TEXT, float si
 std::vector<std::string> wrapLines(const std::string& text, size_t width);
 // Scrolling list; keeps `scroll` consistent with `selected`.
 void list(const std::vector<std::string>& items, int selected, int& scroll,
-          const std::vector<uint16_t>* colors = nullptr);
+          const std::vector<uint16_t>* colors = nullptr, int top = BODY_Y, int rows = ROWS);
 // Moves a list selection with the arrow keys. Returns true if it changed.
 bool listNav(const KeyEvent& k, int& selected, int count);
 

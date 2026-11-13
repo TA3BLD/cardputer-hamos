@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <ctime>
+#include <sys/time.h>
 #include "Config.h"
 
 namespace net {
@@ -31,6 +32,16 @@ void tick() {
 bool configured() { return hasCredentials; }
 bool connected() { return WiFi.status() == WL_CONNECTED; }
 bool timeValid() { return time(nullptr) > 1700000000; }
+long long utcMillis() {
+#ifdef HAMOS_SIM
+    return sim_utc_ms();
+#else
+    struct timeval tv;
+    gettimeofday(&tv, nullptr);
+    return (long long)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+#endif
+}
+
 std::string address() { return connected() ? std::string(WiFi.localIP().toString().c_str()) : ""; }
 
 }  // namespace net

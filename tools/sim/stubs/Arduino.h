@@ -16,6 +16,7 @@
 #define SERIAL_8N1 0
 
 extern uint32_t sim_ms;
+long long sim_utc_ms();         // the simulator's UTC clock (defined in sim.cpp)
 inline uint32_t millis() { return sim_ms; }
 inline void delay(int) {}
 inline void pinMode(int, int) {}

@@ -128,23 +128,33 @@ private:
 
 class Decoder {
 public:
-    // freqOsr 2 resolves half a tone spacing (needs about 190 KB of RAM);
-    // freqOsr 1 is a little less sensitive and needs about 100 KB.
+    // freqOsr 2 resolves half a tone spacing: about 180 KB of RAM, decodes
+    // down to about -17 dB. freqOsr 1 needs about 95 KB and about 3 dB more
+    // signal. The memory is taken in pieces of 1 KB or less.
     // Returns false if the memory is not available.
+    static size_t memoryNeeded(int freqOsr) {
+        size_t nfft = (size_t)kSymbolSamples * (size_t)freqOsr;
+        return (size_t)kRows * (size_t)freqOsr * kBins + nfft * (2 + 4 + 4) + sizeof(Decoder);
+    }
+
     bool begin(int freqOsr) {
         end();
         freqOsr_ = freqOsr == 1 ? 1 : 2;
         nfft_ = kSymbolSamples * freqOsr_;
-        size_t cells = (size_t)kBlocks * kTimeOsr * (size_t)freqOsr_ * kBins;
-        waterfall_ = (uint8_t*)malloc(cells);
+        bool ok = true;
+        for (int r = 0; r < kRows; r++) {
+            rows_[r] = (uint8_t*)malloc((size_t)freqOsr_ * kBins);
+            ok = ok && rows_[r];
+        }
         frame_ = (int16_t*)malloc(sizeof(int16_t) * (size_t)nfft_);
         re_ = (float*)malloc(sizeof(float) * (size_t)nfft_);
         im_ = (float*)malloc(sizeof(float) * (size_t)nfft_);
-        if (!waterfall_ || !frame_ || !re_ || !im_) {
+        if (!ok || !frame_ || !re_ || !im_) {
             end();
             return false;
         }
         fft_.init(nfft_);
+        ready_ = true;
         // Which three checks each codeword bit takes part in.
         int count[kCodeBits] = {0};
         for (int m = 0; m < kParityBits; m++)
@@ -158,18 +168,23 @@ public:
     }
 
     void end() {
-        free(waterfall_); free(frame_); free(re_); free(im_);
-        waterfall_ = nullptr; frame_ = nullptr; re_ = im_ = nullptr;
+        for (int r = 0; r < kRows; r++) { free(rows_[r]); rows_[r] = nullptr; }
+        free(frame_); free(re_); free(im_);
+        frame_ = nullptr; re_ = im_ = nullptr;
+        ready_ = false;
     }
 
+    Decoder() {}
+    Decoder(const Decoder&) = delete;
+    Decoder& operator=(const Decoder&) = delete;
     ~Decoder() { end(); }
-    bool ready() const { return waterfall_ != nullptr; }
+    bool ready() const { return frame_ != nullptr; }
     int freqOsr() const { return freqOsr_; }
 
     // Start of a new period.
     void reset() {
         if (!ready()) return;
-        memset(waterfall_, 0, (size_t)kBlocks * kTimeOsr * (size_t)freqOsr_ * kBins);
+        for (int r = 0; r < kRows; r++) memset(rows_[r], 0, (size_t)freqOsr_ * kBins);
         memset(frame_, 0, sizeof(int16_t) * (size_t)nfft_);
         steps_ = 0;
         pending_ = 0;
@@ -178,8 +193,8 @@ public:
         found_.clear();
     }
 
-    bool full() const { return steps_ >= kBlocks * kTimeOsr; }
-    float progress() const { return (float)steps_ / (kBlocks * kTimeOsr); }
+    bool full() const { return steps_ >= kRows; }
+    float progress() const { return (float)steps_ / kRows; }
 
     // Audio at 6400 Hz. Samples beyond the kept part of the period are ignored.
     void feed(const int16_t* samples, size_t n) {
@@ -220,9 +235,11 @@ private:
         uint8_t timeSub, freqSub;
     };
 
+    static constexpr int kRows = kBlocks * kTimeOsr;
+
     // One spectrogram value: 0.5 dB steps.
     const uint8_t* cell(int block, int timeSub, int freqSub) const {
-        return waterfall_ + (((size_t)block * kTimeOsr + (size_t)timeSub) * (size_t)freqOsr_ + (size_t)freqSub) * kBins;
+        return rows_[block * kTimeOsr + timeSub] + (size_t)freqSub * kBins;
     }
 
     void spectrum() {
@@ -234,7 +251,7 @@ private:
             im_[i] = 0;
         }
         fft_.run(re_, im_);
-        uint8_t* row = waterfall_ + (size_t)steps_ * (size_t)freqOsr_ * kBins;
+        uint8_t* row = rows_[steps_];
         for (int sub = 0; sub < freqOsr_; sub++)
             for (int bin = 0; bin < kBins; bin++) {
                 int src = (kMinBin + bin) * freqOsr_ + sub;
@@ -410,7 +427,8 @@ private:
     }
 
     int freqOsr_ = 2, nfft_ = 0, steps_ = 0, pending_ = 0;
-    uint8_t* waterfall_ = nullptr;
+    bool ready_ = false;
+    uint8_t* rows_[kRows] = {nullptr};
     int16_t* frame_ = nullptr;
     float* re_ = nullptr;
     float* im_ = nullptr;

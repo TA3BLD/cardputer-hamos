@@ -117,6 +117,8 @@ private:
             {"dx_beep", "New DXCC beep 0/1", "1", 1, false, false, NONE},
             {"rig_host", "Rig host (rigctld)", "", 40, false, false, RIG},
             {"rig_port", "Rig port", "4532", 5, false, false, RIG},
+            {"ft8_dial", "FT8 dial MHz", "14.074", 8, false, false, NONE},
+            {"ft8_tx_hz", "FT8 TX audio Hz", "1500", 4, false, false, NONE},
             {"wsjtx_on", "WSJT-X link 0/1", "0", 1, false, false, FT8},
             {"wsjtx_port", "WSJT-X UDP port", "2237", 5, false, false, FT8},
             {"pota_ref", "POTA park ref", "", 12, true, false, NONE},
