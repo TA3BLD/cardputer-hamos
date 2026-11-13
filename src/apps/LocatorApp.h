@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdio>
 #include "core/App.h"
-#include "core/Config.h"
+#include "core/Station.h"
 #include "core/Ui.h"
 #include "lib/Maidenhead.h"
 
@@ -13,7 +13,7 @@ public:
 
     void onEnter() override {
         from_.maxLen = to_.maxLen = 6;
-        if (from_.value.empty()) from_.value = config::get("grid");
+        if (from_.value.empty() || from_.value == lastAuto_) from_.value = lastAuto_ = station::grid();
         active_ = from_.value.empty() ? 0 : 1;
     }
 
@@ -58,5 +58,6 @@ private:
     }
 
     ui::TextInput from_, to_;
+    std::string lastAuto_;      // the grid filled in automatically (GPS or Settings)
     int active_ = 0;
 };

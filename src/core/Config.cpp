@@ -41,5 +41,6 @@ std::string get(const std::string& key, const std::string& def) {
 }
 
 void set(const std::string& key, const std::string& value) { values[key] = value; }
+void erase(const std::string& key) { values.erase(key); }
 
 }  // namespace config

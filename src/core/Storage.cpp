@@ -9,6 +9,7 @@ static const int PIN_SCK = 40, PIN_MISO = 39, PIN_MOSI = 14, PIN_CS = 12;
 static bool isReady = false;
 
 bool begin() {
+    // The LoRa cap shares this SPI bus: cap::begin() must already have parked its chip select.
     SPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_CS);
     for (int attempt = 0; attempt < 3 && !isReady; attempt++) {
         isReady = SD.begin(PIN_CS, SPI, 25000000);
@@ -22,19 +23,26 @@ bool ready() { return isReady; }
 
 bool exists(const char* path) { return isReady && SD.exists(path); }
 
-bool readFile(const char* path, std::string& out) {
-    out.clear();
+bool remove(const char* path) { return isReady && SD.remove(path); }
+bool rename(const char* from, const char* to) { return isReady && SD.rename(from, to); }
+
+bool readChunks(const char* path, ChunkHandler handler, void* user) {
     if (!isReady) return false;
     File f = SD.open(path);
     if (!f) return false;
-    uint8_t buf[256];
+    uint8_t buf[512];
     while (f.available()) {
         int n = f.read(buf, sizeof(buf));
         if (n <= 0) break;
-        out.append((const char*)buf, (size_t)n);
+        handler((const char*)buf, (size_t)n, user);
     }
     f.close();
     return true;
+}
+
+bool readFile(const char* path, std::string& out) {
+    out.clear();
+    return readChunks(path, [](const char* d, size_t n, void* u) { ((std::string*)u)->append(d, n); }, &out);
 }
 
 static bool put(const char* path, const std::string& text, const char* mode) {

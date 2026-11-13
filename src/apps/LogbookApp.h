@@ -4,32 +4,37 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Log.h"
 #include "core/Net.h"
-#include "core/Storage.h"
+#include "core/Station.h"
 #include "core/Ui.h"
 #include "lib/Adif.h"
+#include "lib/Dxcc.h"
+#include "lib/Maidenhead.h"
 
 // QSO logbook. The log itself is a standard ADIF file (/HamOS/log.adi) that
-// can be imported straight into any PC logging program.
+// can be imported straight into any PC logging program. While a callsign is
+// typed the form shows its country, distance and beam heading.
 class LogbookApp : public App {
 public:
     const char* name() const override { return "Logbook"; }
     uint16_t color() const override { return 0xF800; }
 
     void onEnter() override {
-        if (!loaded_) load();
-        editing_ = false;
+        logbook::load();
+        editing_ = confirmDelete_ = false;
         status_.clear();
     }
 
     bool onBack() override {
-        if (!editing_) return false;
-        editing_ = false;
+        if (!editing_ && !confirmDelete_) return false;
+        editing_ = confirmDelete_ = false;
         dirty = true;
         return true;
     }
 
     void onKey(const KeyEvent& k) override {
+        const auto& qsos = logbook::recent();
         if (editing_) {
             if (k.enter && field_ == FIELDS - 1) save();
             else if (k.enter || k.tab) {
@@ -38,10 +43,23 @@ public:
             }
             else if (!in_[field_].handle(k)) return;
             dirty = true;
+        } else if (confirmDelete_) {
+            if (k.ch == 'y' || k.ch == 'Y') {
+                size_t index = qsos.size() - 1 - (size_t)selected_;     // list shows newest first
+                std::string call = qsos[index].call;
+                status_ = logbook::remove(index) ? "Deleted " + call : "Delete failed";
+                if (selected_ >= (int)logbook::recent().size()) selected_ = 0;
+            }
+            confirmDelete_ = false;
+            dirty = true;
         } else if (k.ch == 'n' || k.ch == 'N') {
             startForm();
             dirty = true;
-        } else if (ui::listNav(k, selected_, (int)qsos_.size())) {
+        } else if ((k.ch == 'd' || k.ch == 'D') && !qsos.empty()) {
+            confirmDelete_ = true;
+            dirty = true;
+        } else if (ui::listNav(k, selected_, (int)qsos.size())) {
+            status_.clear();
             dirty = true;
         }
     }
@@ -53,18 +71,6 @@ public:
 
 private:
     enum { CALL, FREQ, MODE, SENT, RCVD, NOTE, FIELDS };
-    static constexpr size_t MAX_IN_MEMORY = 200;   // RAM limit; the file keeps everything
-    static constexpr const char* kPath = "/HamOS/log.adi";
-
-    void load() {
-        std::string text;
-        if (storage::readFile(kPath, text)) {
-            qsos_ = adif::parse(text);
-            total_ = qsos_.size();
-            if (qsos_.size() > MAX_IN_MEMORY) qsos_.erase(qsos_.begin(), qsos_.end() - MAX_IN_MEMORY);
-        }
-        loaded_ = true;
-    }
 
     void startForm() {
         static const size_t maxLen[FIELDS] = {12, 10, 8, 3, 3, 40};
@@ -74,8 +80,9 @@ private:
         }
         in_[CALL].upper = in_[MODE].upper = true;
         // Frequency and mode usually stay the same between contacts.
-        in_[FREQ].value = qsos_.empty() ? "14.200" : qsos_.back().freq;
-        in_[MODE].value = qsos_.empty() ? "SSB" : qsos_.back().mode;
+        const auto& qsos = logbook::recent();
+        in_[FREQ].value = qsos.empty() ? "14.200" : qsos.back().freq;
+        in_[MODE].value = qsos.empty() ? "SSB" : qsos.back().mode;
         defaultRst();
         field_ = CALL;
         editing_ = true;
@@ -112,27 +119,10 @@ private:
             strftime(buf, sizeof(buf), "%H%M", &t);
             q.time = buf;
         }
-        std::string out = storage::exists(kPath) ? "" : adif::header();
-        bool ok = storage::appendFile(kPath, out + adif::toRecord(q));
-        qsos_.push_back(q);
-        total_++;
-        if (qsos_.size() > MAX_IN_MEMORY) qsos_.erase(qsos_.begin());
+        bool ok = logbook::add(q);
         status_ = ok ? "Saved " + q.call : "No SD card: lost at power-off";
         selected_ = 0;
         editing_ = false;
-    }
-
-    // How many logged contacts share this callsign; `sameBandMode` counts true dupes.
-    int workedBefore(const std::string& call, int& sameBandMode) const {
-        int n = 0;
-        sameBandMode = 0;
-        std::string band = adif::band(atof(in_[FREQ].value.c_str()));
-        for (const adif::Qso& q : qsos_) {
-            if (q.call != call) continue;
-            n++;
-            if (q.mode == in_[MODE].value && adif::band(atof(q.freq.c_str())) == band) sameBandMode++;
-        }
-        return n;
     }
 
     void drawForm() {
@@ -140,26 +130,42 @@ private:
         ui::clearBody();
         for (int i = 0; i < FIELDS; i++) ui::formRow(i, labels[i], in_[i].value, i == field_);
 
+        // Line 1: country, distance and heading from the callsign prefix.
+        const dxcc::Entity* e = dxcc::lookup(in_[CALL].value);
+        if (e) {
+            std::string where = e->name;
+            double lat, lon;
+            if (station::position(lat, lon)) {
+                char buf[40];
+                snprintf(buf, sizeof(buf), "  %.0f km  %03.0f deg", maidenhead::distanceKm(lat, lon, e->lat, e->lon),
+                         maidenhead::bearingDeg(lat, lon, e->lat, e->lon));
+                where += buf;
+            }
+            ui::text(6, ui::BODY_Y + 77, where, logbook::workedEntity(e) ? ui::C_TEXT : ui::C_SEL);
+            if (!logbook::workedEntity(e)) ui::text(ui::W - 30, ui::BODY_Y + 77, "NEW", ui::C_SEL);
+        }
+        // Line 2: band and warnings.
         std::string band = adif::band(atof(in_[FREQ].value.c_str()));
-        ui::text(6, ui::BODY_Y + 80, band.empty() ? "out of band" : band, band.empty() ? ui::C_WARN : ui::C_OK, 1.5);
+        ui::text(6, ui::BODY_Y + 90, band.empty() ? "out of band" : band, band.empty() ? ui::C_WARN : ui::C_OK, 1.5);
         int dupes = 0;
-        int worked = in_[CALL].value.empty() ? 0 : workedBefore(in_[CALL].value, dupes);
-        if (dupes) ui::text(84, ui::BODY_Y + 80, "DUPE!", ui::C_ERR, 1.5);
-        else if (worked) ui::text(84, ui::BODY_Y + 83, "worked " + std::to_string(worked) + "x before", ui::C_WARN);
-        else if (!net::timeValid()) ui::text(84, ui::BODY_Y + 83, "no UTC time yet", ui::C_WARN);
+        int worked = in_[CALL].value.empty() ? 0 : logbook::worked(in_[CALL].value, in_[FREQ].value, in_[MODE].value, dupes);
+        if (dupes) ui::text(84, ui::BODY_Y + 90, "DUPE!", ui::C_ERR, 1.5);
+        else if (worked) ui::text(84, ui::BODY_Y + 93, "worked " + std::to_string(worked) + "x before", ui::C_WARN);
+        else if (!net::timeValid()) ui::text(84, ui::BODY_Y + 93, "no UTC time yet", ui::C_WARN);
         ui::footer(!status_.empty() ? status_.c_str()
                    : field_ == FIELDS - 1 ? "ENTER save QSO   ` cancel" : "ENTER/TAB next   ` cancel");
     }
 
     void drawList() {
-        if (qsos_.empty()) {
+        const auto& qsos = logbook::recent();
+        if (qsos.empty()) {
             ui::clearBody();
             ui::textCentered(ui::BODY_Y + 30, "Log is empty", ui::C_DIM, 2);
             ui::textCentered(ui::BODY_Y + 62, "Press N to log your first QSO", ui::C_DIM);
         } else {
             std::vector<std::string> rows;
             char line[48];
-            for (auto it = qsos_.rbegin(); it != qsos_.rend(); ++it) {   // newest first
+            for (auto it = qsos.rbegin(); it != qsos.rend(); ++it) {   // newest first
                 std::string day = it->date.size() == 8 ? it->date.substr(6, 2) + "." + it->date.substr(4, 2) : "--.--";
                 snprintf(line, sizeof(line), "%s %-4s %-9s %-7s %-4s %s", day.c_str(),
                          it->time.empty() ? "----" : it->time.c_str(), it->call.c_str(), it->freq.c_str(),
@@ -168,13 +174,14 @@ private:
             }
             ui::list(rows, selected_, scroll_);
         }
-        std::string hint = !status_.empty() ? status_ : "N new QSO   " + std::to_string(total_) + " in log";
+        std::string hint;
+        if (confirmDelete_) hint = "Delete " + qsos[qsos.size() - 1 - (size_t)selected_].call + "?  Y yes   any key no";
+        else if (!status_.empty()) hint = status_;
+        else hint = "N new  D delete  " + std::to_string(logbook::total()) + " QSOs";
         ui::footer(hint.c_str());
     }
 
-    std::vector<adif::Qso> qsos_;
-    size_t total_ = 0;
-    bool loaded_ = false, editing_ = false;
+    bool editing_ = false, confirmDelete_ = false;
     int selected_ = 0, scroll_ = 0, field_ = 0;
     ui::TextInput in_[FIELDS];
     std::string status_;

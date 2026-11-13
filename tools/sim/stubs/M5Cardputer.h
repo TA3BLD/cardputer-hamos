@@ -34,7 +34,12 @@ struct Keyboard_Class {
 struct SimPower { int getBatteryLevel() { return 87; } };
 struct SimSpeaker { void tone(float, uint32_t) {} };
 struct SimConfig {};
-struct SimM5 { SimConfig config() { return {}; } };
+struct SimI2C {
+    bool scanID(uint8_t, uint32_t) { return true; }
+    uint8_t readRegister8(uint8_t, uint8_t, uint32_t) { return 0; }
+    bool writeRegister8(uint8_t, uint8_t, uint8_t, uint32_t) { return true; }
+};
+struct SimM5 { SimI2C In_I2C; SimConfig config() { return {}; } };
 inline SimM5 M5;
 struct SimCardputer {
     SimDisplay Display;

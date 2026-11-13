@@ -2,6 +2,8 @@
 #include <M5Cardputer.h>
 #include <cmath>
 #include <ctime>
+#include "Gps.h"
+#include "Mesh.h"
 #include "Net.h"
 
 namespace ui {
@@ -21,7 +23,7 @@ void statusBar(const char* title) {
     lcd().setTextDatum(middle_left);
     lcd().drawString(title, 4, STATUS_H / 2);
 
-    char right[32];
+    char right[48];
     char clock[8] = "--:--";
     if (net::timeValid()) {
         time_t now = time(nullptr);
@@ -29,8 +31,10 @@ void statusBar(const char* title) {
         gmtime_r(&now, &t);
         snprintf(clock, sizeof(clock), "%02d:%02d", t.tm_hour, t.tm_min);
     }
-    snprintf(right, sizeof(right), "%sz %s %d%%", clock, net::connected() ? "WiFi" : "----",
-             (int)M5Cardputer.Power.getBatteryLevel());
+    char unread[8] = "";
+    if (mesh::unread() > 0) snprintf(unread, sizeof(unread), " M%d", mesh::unread() > 99 ? 99 : mesh::unread());
+    snprintf(right, sizeof(right), "%sz%s%s%s %d%%", clock, unread, gps::hasFix() ? " GPS" : "",
+             net::connected() ? " WiFi" : "", (int)M5Cardputer.Power.getBatteryLevel());
     lcd().setTextDatum(middle_right);
     lcd().drawString(right, W - 4, STATUS_H / 2);
 }
@@ -86,6 +90,39 @@ void text(int x, int y, const std::string& s, uint16_t color, float size) {
     lcd().drawString(s.c_str(), x, y);
 }
 
+void textOn(int x, int y, const std::string& s, uint16_t color, uint16_t background) {
+    lcd().setTextSize(1);
+    lcd().setTextColor(color, background);
+    lcd().setTextDatum(top_left);
+    lcd().drawString(s.c_str(), x, y);
+}
+
+std::string ascii(const std::string& in) {
+    std::string out;
+    for (size_t i = 0; i < in.size();) {
+        unsigned char c = (unsigned char)in[i];
+        if (c < 0x80) {
+            out += (c >= 32 && c < 127) ? (char)c : ' ';
+            i++;
+            continue;
+        }
+        size_t len = c >= 0xF0 ? 4 : c >= 0xE0 ? 3 : c >= 0xC0 ? 2 : 1;
+        unsigned code = len == 2 && i + 1 < in.size() ? ((c & 0x1Fu) << 6) | ((unsigned char)in[i + 1] & 0x3Fu) : 0;
+        switch (code) {
+            case 0xE7: out += 'c'; break;   case 0xC7: out += 'C'; break;
+            case 0x11F: out += 'g'; break;  case 0x11E: out += 'G'; break;
+            case 0x131: out += 'i'; break;  case 0x130: out += 'I'; break;
+            case 0xF6: out += 'o'; break;   case 0xD6: out += 'O'; break;
+            case 0x15F: out += 's'; break;  case 0x15E: out += 'S'; break;
+            case 0xFC: out += 'u'; break;   case 0xDC: out += 'U'; break;
+            default: out += '?';
+        }
+        i += len;
+        while (i < in.size() && ((unsigned char)in[i] & 0xC0) == 0x80 && len == 1) i++;   // stray continuation bytes
+    }
+    return out;
+}
+
 void textCentered(int y, const std::string& s, uint16_t color, float size) {
     lcd().setTextSize(size);
     lcd().setTextColor(color, C_BG);
@@ -93,7 +130,7 @@ void textCentered(int y, const std::string& s, uint16_t color, float size) {
     lcd().drawString(s.c_str(), W / 2, y);
 }
 
-void list(const std::vector<std::string>& items, int selected, int& scroll) {
+void list(const std::vector<std::string>& items, int selected, int& scroll, const std::vector<uint16_t>* colors) {
     if (selected < scroll) scroll = selected;
     if (selected >= scroll + ROWS) scroll = selected - ROWS + 1;
     if (scroll < 0) scroll = 0;
@@ -106,7 +143,7 @@ void list(const std::vector<std::string>& items, int selected, int& scroll) {
         int y = BODY_Y + row * ROW_H;
         uint16_t bg = (i == selected) ? C_SEL : C_BG;
         if (i == selected) lcd().fillRect(0, y, W, ROW_H, bg);
-        lcd().setTextColor(C_TEXT, bg);
+        lcd().setTextColor(colors && i < (int)colors->size() ? (*colors)[i] : C_TEXT, bg);
         lcd().drawString(items[i].c_str(), 6, y + ROW_H / 2);
     }
 }

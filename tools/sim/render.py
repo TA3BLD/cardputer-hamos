@@ -61,7 +61,7 @@ def main(ops_path, out_dir):
             shots.append(big)
 
     # Overview sheet: all screens in a grid.
-    cols, pad = 3, 18
+    cols, pad = 4, 14
     rows = (len(shots) + cols - 1) // cols
     sheet = Image.new("RGB", (cols * (W * SCALE + pad) + pad, rows * (H * SCALE + pad) + pad), (24, 26, 32))
     for i, shot in enumerate(shots):

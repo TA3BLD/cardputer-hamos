@@ -3,8 +3,10 @@
 #include <vector>
 #include "core/App.h"
 #include "core/Config.h"
+#include "core/Mesh.h"
 #include "core/Net.h"
 #include "core/Ui.h"
+#include "core/Web.h"
 
 // Edits the values in /HamOS/config.txt.
 class SettingsApp : public App {
@@ -28,9 +30,11 @@ public:
         const Field& f = fields()[selected_];
         if (editing_) {
             if (k.enter) {
-                config::set(f.key, input_.value);
+                if (input_.value.empty()) config::erase(f.key);     // empty = back to the default
+                else config::set(f.key, input_.value);
                 status_ = config::save() ? "Saved" : "No SD card: not saved";
-                if (f.wifi) net::begin();
+                if (f.apply == WIFI) net::begin();
+                if (f.apply == MESH) mesh::begin();
                 editing_ = false;
             } else if (!input_.handle(k)) {
                 return;
@@ -63,28 +67,46 @@ public:
             rows.push_back(std::string(f.label) + ": " + (v.empty() ? "-" : v));
         }
         ui::list(rows, selected_, scroll_);
-        ui::footer(status_.empty() ? "ENTER edit   ` back" : status_.c_str());
+        std::string hint = !status_.empty() ? status_ : web::running() ? web::address() : "ENTER edit   ` back";
+        ui::footer(hint.c_str());
     }
 
 private:
+    enum Apply { NONE, WIFI, MESH };     // what has to restart when the value changes
     struct Field {
         const char* key;
         const char* label;
         const char* def;
         size_t maxLen;
-        bool upper, secret, wifi;
+        bool upper, secret;
+        Apply apply;
     };
 
     static const std::vector<Field>& fields() {
         static const std::vector<Field> f = {
-            {"callsign", "Callsign", "", 10, true, false, false},
-            {"grid", "Grid locator", "", 6, false, false, false},
-            {"utc_offset", "UTC offset (h)", "3", 5, false, false, false},
-            {"wifi_ssid", "WiFi SSID", "", 32, false, false, true},
-            {"wifi_pass", "WiFi password", "", 63, false, true, true},
-            {"cw_wpm", "CW speed WPM", "18", 2, false, false, false},
-            {"cw_tone", "CW tone Hz", "700", 4, false, false, false},
-            {"koch_level", "Koch level", "2", 2, false, false, false},
+            {"callsign", "Callsign", "", 10, true, false, MESH},
+            {"grid", "Grid locator", "", 6, false, false, NONE},
+            {"utc_offset", "UTC offset (h)", "3", 5, false, false, NONE},
+            {"wifi_ssid", "WiFi SSID", "", 32, false, false, WIFI},
+            {"wifi_pass", "WiFi password", "", 63, false, true, WIFI},
+            {"web_on", "Web UI (0/1)", "0", 1, false, false, NONE},
+            {"web_pass", "Web UI password", "", 32, false, true, NONE},
+            {"mesh_on", "Mesh (0/1)", "1", 1, false, false, MESH},
+            {"mesh_region", "Mesh region", "EU_868", 8, true, false, MESH},
+            {"mesh_preset", "Mesh preset", "LongFast", 12, false, false, MESH},
+            {"mesh_channel", "Mesh channel", "", 12, false, false, MESH},
+            {"mesh_psk", "Mesh key (base64)", "AQ==", 44, false, true, MESH},
+            {"mesh_name", "Mesh long name", "", 36, false, false, MESH},
+            {"mesh_short", "Mesh short name", "", 4, false, false, MESH},
+            {"mesh_pos", "Share position 0/1", "0", 1, false, false, NONE},
+            {"mesh_beep", "Message beep 0/1", "1", 1, false, false, NONE},
+            {"lora_power", "LoRa power dBm", "22", 3, false, false, MESH},
+            {"dx_host", "DX cluster host", "dxc.ve7cc.net", 40, false, false, NONE},
+            {"dx_port", "DX cluster port", "23", 5, false, false, NONE},
+            {"dx_beep", "New DXCC beep 0/1", "1", 1, false, false, NONE},
+            {"cw_wpm", "CW speed WPM", "18", 2, false, false, NONE},
+            {"cw_tone", "CW tone Hz", "700", 4, false, false, NONE},
+            {"koch_level", "Koch level", "2", 2, false, false, NONE},
         };
         return f;
     }

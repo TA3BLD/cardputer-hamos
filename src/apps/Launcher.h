@@ -34,7 +34,11 @@ public:
             ui::fill(x + 1, y + 1, 5, TILE_H - 2, apps_[i]->color());
             ui::tileLabel(x + 12, y + TILE_H / 2, apps_[i]->name(), sel ? 0x2124 : ui::C_FOOT);
         }
-        ui::footer("Arrows select   ENTER open");
+        int rows = ((int)apps_.size() + COLS - 1) / COLS;
+        bool above = scrollRow_ > 0, below = scrollRow_ + ROWS < rows;
+        ui::footer(above && below ? "Arrows select  ENTER open  more ^v"
+                   : below ? "Arrows select  ENTER open  more v"
+                   : above ? "Arrows select  ENTER open  more ^" : "Arrows select   ENTER open");
     }
 
     App* launch = nullptr;

@@ -8,6 +8,7 @@ void load();                 // call after storage::begin()
 bool save();                 // false if the SD card is unavailable
 std::string get(const std::string& key, const std::string& def = "");
 void set(const std::string& key, const std::string& value);
+void erase(const std::string& key);
 
 // Pure helpers (no SD access), exposed for tests.
 void parse(const std::string& text);

@@ -4,27 +4,39 @@
 
 #include "apps/CalcApp.h"
 #include "apps/ClockApp.h"
+#include "apps/DxClusterApp.h"
+#include "apps/GpsApp.h"
 #include "apps/Launcher.h"
 #include "apps/LocatorApp.h"
 #include "apps/LogbookApp.h"
+#include "apps/MeshApp.h"
 #include "apps/MorseApp.h"
 #include "apps/ReferenceApp.h"
 #include "apps/SettingsApp.h"
+#include "apps/SolarApp.h"
+#include "core/Cap.h"
 #include "core/Config.h"
+#include "core/Gps.h"
+#include "core/Mesh.h"
 #include "core/Net.h"
 #include "core/Storage.h"
 #include "core/Ui.h"
+#include "core/Web.h"
 
 // ---- App registry: add new apps here ---------------------------------------
 static LogbookApp logbookApp;
+static MeshApp meshApp;
+static DxClusterApp dxClusterApp;
+static SolarApp solarApp;
+static GpsApp gpsApp;
 static LocatorApp locatorApp;
 static CalcApp calcApp;
 static MorseApp morseApp;
 static ClockApp clockApp;
 static ReferenceApp referenceApp;
 static SettingsApp settingsApp;
-static const std::vector<App*> apps = {&logbookApp, &locatorApp, &calcApp, &morseApp,
-                                       &clockApp, &referenceApp, &settingsApp};
+static const std::vector<App*> apps = {&logbookApp, &meshApp,  &dxClusterApp, &solarApp,     &gpsApp,     &locatorApp,
+                                       &calcApp,    &morseApp, &clockApp,     &referenceApp, &settingsApp};
 // -----------------------------------------------------------------------------
 
 static Launcher launcher(apps);
@@ -77,12 +89,15 @@ static void pollKeyboard() {
 void setup() {
     auto cfg = M5.config();
     M5Cardputer.begin(cfg, true);
+    cap::begin();           // before the SD card: parks the radio on the shared SPI bus
     ui::begin();
     ui::textCentered(50, "HamOS", ui::C_TEXT, 3);
 
     storage::begin();
     config::load();
     net::begin();
+    gps::begin();
+    mesh::begin();
 
     std::string call = config::get("callsign");
     if (!call.empty()) ui::textCentered(85, "73 de " + call, ui::C_OK, 1.5);
@@ -93,6 +108,9 @@ void setup() {
 void loop() {
     M5Cardputer.update();
     net::tick();
+    gps::tick();
+    mesh::tick();
+    web::tick();
     pollKeyboard();
 
     uint32_t now = millis();

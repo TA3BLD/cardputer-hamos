@@ -24,9 +24,14 @@ void clearBody();
 void fill(int x, int y, int w, int h, uint16_t color);
 void tileLabel(int x, int yMiddle, const char* s, uint16_t bg);
 void text(int x, int y, const std::string& s, uint16_t color = C_TEXT, float size = 1);
+void textOn(int x, int y, const std::string& s, uint16_t color, uint16_t background);
+// Replaces everything the built-in font cannot show: Turkish letters become
+// their plain Latin form, other non-ASCII characters (emoji...) become '?'.
+std::string ascii(const std::string& utf8);
 void textCentered(int y, const std::string& s, uint16_t color = C_TEXT, float size = 1);
 // Scrolling list; keeps `scroll` consistent with `selected`.
-void list(const std::vector<std::string>& items, int selected, int& scroll);
+void list(const std::vector<std::string>& items, int selected, int& scroll,
+          const std::vector<uint16_t>* colors = nullptr);
 // Moves a list selection with the arrow keys. Returns true if it changed.
 bool listNav(const KeyEvent& k, int& selected, int count);
 
