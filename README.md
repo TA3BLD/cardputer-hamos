@@ -108,7 +108,24 @@ HamOS speaks the Meshtastic radio protocol, so it talks to ordinary Meshtastic n
 - **Satellites**: `U` downloads orbit data from celestrak.org once; passes with local time, peak elevation, duration, direction; live Doppler on 2 m and 70 cm. Low orbits only.
 - **WSJT-X**: set `WSJT-X link` = 1 and in WSJT-X the UDP server to the address shown, port 2237.
 - **Logbook**: rig control through Hamlib's `rigctld` (`Rig host`); `POTA park ref`; `Contest mode`; `ID reminder min`.
-- **Web interface** (`Web UI` = 1): download the log, mesh chat, settings, firmware update (only with a `Web UI password`).
+- **Web interface** (`Web UI` = 1): the control panel below over WiFi, plus log download and firmware update (only with a `Web UI password`).
+
+## Control from a PC or phone
+
+Plug the Cardputer into a computer with the USB cable and control all of it from there: the live screen with the PC keyboard, opening apps, the logbook (add, delete, ADIF export and import), Meshtastic and APRS messages, files on the SD card (upload, download, delete, folders), every setting, the clock, restart.
+
+| | |
+|---|---|
+| ![Live screen](docs/pc/screen.png) | ![Logbook](docs/pc/log.png) |
+| ![Files](docs/pc/files.png) | ![Over WiFi on a phone](docs/pc/phone.png) |
+
+Three ways to open the same panel:
+
+1. **PC program**: `pip install pyserial`, then `python tools/pc/hamos_pc.py`. It opens the panel in the browser, finds the Cardputer by itself and reconnects whenever it is plugged in again. Windows, macOS and Linux.
+2. **Without installing anything**: open `tools/pc/hamos.html` in Chrome or Edge and press *Cihaza bağlan (USB)* once; after that it connects as soon as the Cardputer is plugged in.
+3. **Over WiFi, without a cable**: set `Web UI` = 1 and open `http://<device address>` (shown in Settings) on a phone or PC in the same network. A text box lets you type on a phone. Set a `Web UI password` if others share the network (user `hamos`).
+
+The link is newline-separated JSON over the USB serial port (`src/core/Usb.h` lists the commands); over WiFi the same requests go to `POST /api`. The Cardputer's display cannot be read back, so the screen is mirrored by sending each drawing step, not pixels. `tools/pc/embed.py` puts `hamos.html` into the firmware (`src/core/WebPage.h`); run it after changing the page. `tools/sim/devsim.cpp` is a "device" on the PC for trying the panel without hardware.
 
 ## Hardware notes
 
@@ -142,6 +159,7 @@ On a PC, without hardware:
 - **Meshtastic** packets match the official Python library byte for byte; **satellite** positions match the Python sgp4 package within a metre; **Mic-E** matches aprslib; **map** reader tested on the real files.
 - **Unit tests** (`test/host/`) for everything in `src/lib`.
 - **Simulator** (`tools/sim/`): the real app code runs against stand-in hardware, driven by a script with end-to-end checks (a complete FT8 contact, an SSTV picture received and one sent, PSK31 tuned, read and answered, mesh, APRS-IS and LoRa-APRS, logging, keyboard), and renders the screenshots.
+- **PC panel**: a browser test (Playwright) drives the page against the simulated device, through the PC program and over the simulated WiFi server: screen mirror, keyboard, apps, log, mesh, APRS, file upload and download, settings, status.
 - **Library interfaces** checked against the M5Cardputer, M5Unified, M5GFX, RadioLib 7.1.2 and Arduino-ESP32 headers; sources compiled with Arduino's macros defined to catch name collisions.
 
 Not verified: an actual PlatformIO build, anything on air, real microphone and speaker levels, the cap's TCXO voltage, the default DX cluster address.
@@ -158,7 +176,7 @@ Flags: public domain (npm `svg-country-flags`, from Wikipedia). Map outlines: Na
 Logic that does not need hardware goes in `src/lib/` and gets a test in `test/host/`:
 
 ```bash
-for t in test_libs test_maidenhead test_radio test_modem test_sat test_ft8qso test_psk31; do
+for t in test_libs test_maidenhead test_radio test_modem test_sat test_ft8qso test_psk31 test_json; do
   g++ -std=c++17 -O1 -I src test/host/$t.cpp -lcrypto -o test/host/t.out && test/host/t.out
 done
 g++ -std=c++17 -I src test/host/test_map.cpp -o test/host/t.out && test/host/t.out sdcard/HamOS/map

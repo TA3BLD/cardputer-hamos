@@ -36,6 +36,7 @@
 #include "core/Rig.h"
 #include "core/Storage.h"
 #include "core/Ui.h"
+#include "core/Usb.h"
 #include "core/Web.h"
 #include "core/Wsjtx.h"
 
@@ -108,6 +109,22 @@ static void dispatch(const KeyEvent& k) {
         launcher.launch = nullptr;
         switchTo(next);
     }
+}
+
+// ---- control from a computer over USB ----
+static void usbKey(const KeyEvent& k) {
+    noteActivity();
+    dispatch(k);
+}
+static void usbOpen(App* app) {
+    noteActivity();
+    if (app != current) switchTo(app ? app : &launcher);
+}
+static App* usbCurrent() { return current; }
+static void redrawAll() {
+    ui::fill(0, 0, ui::W, ui::H, ui::C_BG);
+    current->dirty = true;
+    lastStatusMs = 0;
 }
 
 // M5Cardputer 1.1.1 reports Backspace, Esc and the Fn+arrow keys in separate
@@ -199,6 +216,9 @@ void setup() {
     M5Cardputer.Display.setBrightness(brightness());
     noteActivity();
 
+    usb::Host usbHost = {usbKey, usbOpen, usbCurrent, &apps, redrawAll};
+    usb::begin(usbHost);
+
     std::string call = config::get("callsign");
     if (!call.empty()) ui::textCentered(85, "73 de " + call, ui::C_OK, 1.5);
     delay(800);
@@ -212,6 +232,7 @@ void loop() {
     mesh::tick();
     loraaprs::tick();
     web::tick();
+    usb::tick();
     aprsis::tick();
     rig::tick();
     wsjtxlink::tick();

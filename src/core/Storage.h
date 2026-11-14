@@ -17,6 +17,15 @@ bool rename(const char* from, const char* to);
 // Streams a file in pieces so large files never have to fit in RAM.
 typedef void (*ChunkHandler)(const char* data, size_t len, void* user);
 bool readChunks(const char* path, ChunkHandler handler, void* user);
+struct Entry {
+    std::string name;
+    bool folder;
+    uint32_t size;
+};
+// Everything in a folder, folders first, then by name.
+std::vector<Entry> listDir(const char* folder);
+bool makeDir(const char* path);
+bool removeDir(const char* path);       // only an empty folder
 // File names (no path) in a folder, sorted; folders are left out.
 std::vector<std::string> listFiles(const char* folder);
 // Reads `len` bytes at `offset`; returns the number read (0 on error).

@@ -1,0 +1,25 @@
+# Bilgisayardan kontrol
+
+Cardputer'ı USB kablosuyla bilgisayara takınca her şeyi oradan yapabilirsiniz: ekranı canlı görüp bilgisayar klavyesiyle yazmak, uygulama açmak, log, Meshtastic ve APRS mesajları, SD karttaki dosyalar, ayarlar, saat.
+
+## Yol 1: PC programı
+- Python kurulu olmalı. Bir kez: pip install pyserial
+- Çalıştırın: python hamos_pc.py (tools/pc klasöründe)
+- Tarayıcıda panel açılır. Cardputer takılınca kendiliğinden bağlanır, çıkarıp takınca yeniden bağlanır.
+
+## Yol 2: Kurulumsuz
+- tools/pc/hamos.html dosyasını Chrome veya Edge ile açın.
+- İlk sefer "Cihaza bağlan (USB)" düğmesine basıp portu seçin. Sonra takar takmaz bağlanır.
+
+## Yol 3: WiFi, kablosuz
+- Settings: WiFi adını ve şifresini girin, Web UI = 1 yapın.
+- Aynı ağdaki telefon veya bilgisayarda http://cihazın-adresi açın (adres Settings'te görünür).
+- Telefonda ekranın altındaki kutuya yazıp Yaz'a basın.
+- Ağı başkalarıyla paylaşıyorsanız Web UI password girin (kullanıcı adı: hamos).
+
+## Panelde neler var
+- Ekran: canlı görüntü, ESC, TAB, ENTER, DEL ve ok tuşları, uygulama düğmeleri, ekran görüntüsü
+- Log: QSO ekle, sil, ara, ADIF indir ve içe aktar
+- Meshtastic ve APRS: mesajlar, gönderme, istasyon listesi, beacon
+- Dosyalar: SD kartta gezin, yükleyin, indirin, silin, klasör açın
+- Ayarlar: tüm ayarlar; Durum: pil, bellek, GPS, WiFi; saati PC'den ayarlama

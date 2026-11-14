@@ -47,3 +47,14 @@ struct SimStream {
 };
 struct SimSerial : SimStream { void begin(long, int, int, int) {} };
 inline SimSerial Serial1;
+
+// The USB serial port: the script (or devsim's pseudo terminal) writes into
+// rx; what HamOS sends collects in tx, or goes to sim_usb_fd when set.
+inline int sim_usb_fd = -1;
+size_t sim_usb_write(const uint8_t* data, size_t n);       // defined in the simulator
+struct SimUsbSerial : SimStream {
+    std::string tx;
+    void begin(unsigned long) {}
+    size_t write(const uint8_t* data, size_t n) { return sim_usb_write(data, n); }
+};
+inline SimUsbSerial Serial;

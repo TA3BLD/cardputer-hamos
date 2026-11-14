@@ -7,10 +7,17 @@
 #include "Gps.h"
 #include "Mesh.h"
 #include "Net.h"
+#include "Usb.h"
 
 namespace ui {
 
 static auto& lcd() { return M5Cardputer.Display; }
+
+// Every drawing step also goes to the computer while it mirrors the screen.
+static void rect(int x, int y, int w, int h, uint16_t c) {
+    lcd().fillRect(x, y, w, h, c);
+    if (usb::mirroring()) usb::mirrorFill(x, y, w, h, c);
+}
 
 // ---- text with Turkish letters ----
 // The built-in 6x8 font has no Turkish letters, so these twelve are drawn from
@@ -88,7 +95,10 @@ static void drawRun(const std::string& s, int x, int y, float size, uint16_t fg,
     std::string run;
     size_t runStart = 0, index = 0;
     auto flush = [&]() {
-        if (!run.empty()) lcd().drawString(run.c_str(), x + (int)(runStart * cell), y);
+        if (!run.empty()) {
+            lcd().drawString(run.c_str(), x + (int)(runStart * cell), y);
+            if (usb::mirroring()) usb::mirrorText(x + (int)(runStart * cell), y, size, fg, fillBg ? (int)bg : -1, run);
+        }
         run.clear();
     };
     for (size_t i = 0; i < s.size();) {
@@ -97,13 +107,13 @@ static void drawRun(const std::string& s, int x, int y, float size, uint16_t fg,
         if (g) {
             flush();
             int gx = x + (int)(index * cell);
-            if (fillBg) lcd().fillRect(gx, y, (int)(cell + 0.5f), (int)(8 * size + 0.5f), bg);
+            if (fillBg) rect(gx, y, (int)(cell + 0.5f), (int)(8 * size + 0.5f), bg);
             for (int col = 0; col < 5; col++)
                 for (int row = 0; row < 8; row++)
                     if (g->cols[col] >> row & 1) {
                         int px = gx + (int)(col * size), py = y + (int)(row * size);
                         int pw = gx + (int)((col + 1) * size) - px, ph = y + (int)((row + 1) * size) - py;
-                        lcd().fillRect(px, py, pw, ph, fg);
+                        rect(px, py, pw, ph, fg);
                     }
         } else {
             if (run.empty()) runStart = index;
@@ -131,11 +141,11 @@ void setNotice(const std::string& text) { notice = text; }
 void begin() {
     lcd().setRotation(1);
     lcd().setTextFont(1);
-    lcd().fillScreen(C_BG);
+    rect(0, 0, W, H, C_BG);
 }
 
 void statusBar(const char* title) {
-    lcd().fillRect(0, 0, W, STATUS_H, C_BAR);
+    rect(0, 0, W, STATUS_H, C_BAR);
     drawText(notice.empty() ? std::string(title) : notice, 4, STATUS_H / 2, 1, LEFT, true, notice.empty() ? C_TEXT : C_NOTICE, C_BAR);
 
     char right[48];
@@ -158,23 +168,37 @@ void statusBar(const char* title) {
 }
 
 void footer(const char* hint) {
-    lcd().fillRect(0, H - FOOTER_H, W, FOOTER_H, C_FOOT);
+    rect(0, H - FOOTER_H, W, FOOTER_H, C_FOOT);
     drawText(hint, 4, H - FOOTER_H / 2 - 1, 1, LEFT, true, C_TEXT, C_FOOT);
 }
 
-void fill(int x, int y, int w, int h, uint16_t color) { lcd().fillRect(x, y, w, h, color); }
-void line(int x0, int y0, int x1, int y1, uint16_t color) { lcd().drawLine(x0, y0, x1, y1, color); }
-void pixel(int x, int y, uint16_t color) { lcd().drawPixel(x, y, color); }
+void fill(int x, int y, int w, int h, uint16_t color) { rect(x, y, w, h, color); }
+void line(int x0, int y0, int x1, int y1, uint16_t color) {
+    lcd().drawLine(x0, y0, x1, y1, color);
+    if (usb::mirroring()) usb::mirrorLine(x0, y0, x1, y1, color);
+}
+void pixel(int x, int y, uint16_t color) {
+    lcd().drawPixel(x, y, color);
+    if (usb::mirroring()) usb::mirrorLine(x, y, x, y, color);
+}
 void circle(int x, int y, int r, uint16_t color, bool filled) {
     if (filled) lcd().fillCircle(x, y, r, color);
     else lcd().drawCircle(x, y, r, color);
+    if (usb::mirroring()) usb::mirrorCircle(x, y, r, color, filled);
 }
-void triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t color) { lcd().fillTriangle(x0, y0, x1, y1, x2, y2, color); }
-void frame(int x, int y, int w, int h, uint16_t color) { lcd().drawRect(x, y, w, h, color); }
+void triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t color) {
+    lcd().fillTriangle(x0, y0, x1, y1, x2, y2, color);
+    if (usb::mirroring()) usb::mirrorTriangle(x0, y0, x1, y1, x2, y2, color);
+}
+void frame(int x, int y, int w, int h, uint16_t color) {
+    lcd().drawRect(x, y, w, h, color);
+    if (usb::mirroring()) usb::mirrorFrame(x, y, w, h, color);
+}
 void image(int x, int y, int w, int h, const uint16_t* data) {
     // With byte swapping off, M5GFX reads uint16_t pixel data as high byte first.
     lcd().setSwapBytes(false);
     lcd().pushImage(x, y, w, h, data);
+    if (usb::mirroring()) usb::mirrorImage(x, y, w, h, data);
 }
 
 void tileLabel(int x, int yMiddle, const char* s, uint16_t bg) { drawText(s, x, yMiddle, 1.5, LEFT, true, C_TEXT, bg); }
@@ -182,7 +206,7 @@ void tileLabel(int x, int yMiddle, const char* s, uint16_t bg) { drawText(s, x, 
 void formRow(int row, const char* label, const std::string& value, bool active, uint16_t valueColor) {
     int y = BODY_Y + 2 + row * ROW_H;
     uint16_t bg = active ? C_FOOT : C_BG;
-    lcd().fillRect(0, y, W, ROW_H, bg);
+    rect(0, y, W, ROW_H, bg);
     drawText(label, 6, y + ROW_H / 2, 1, LEFT, true, active ? C_SEL : C_DIM, bg);
     drawText(value + (active ? "_" : ""), 84, y + ROW_H / 2, 1, LEFT, true, valueColor, bg);
 }
@@ -200,7 +224,7 @@ std::string num(double v, int decimals) {
     return s;
 }
 
-void clearBody() { lcd().fillRect(0, BODY_Y, W, BODY_H, C_BG); }
+void clearBody() { rect(0, BODY_Y, W, BODY_H, C_BG); }
 
 void text(int x, int y, const std::string& s, uint16_t color, float size) { drawText(s, x, y, size, LEFT, false, color, C_BG); }
 
@@ -277,13 +301,13 @@ void list(const std::vector<std::string>& items, int selected, int& scroll, cons
     if (selected < scroll) scroll = selected;
     if (selected >= scroll + rows) scroll = selected - rows + 1;
     if (scroll < 0) scroll = 0;
-    lcd().fillRect(0, top, W, rows * ROW_H, C_BG);
+    rect(0, top, W, rows * ROW_H, C_BG);
     for (int row = 0; row < rows; row++) {
         int i = scroll + row;
         if (i >= (int)items.size()) break;
         int y = top + row * ROW_H;
         uint16_t bg = (i == selected) ? C_SEL : C_BG;
-        if (i == selected) lcd().fillRect(0, y, W, ROW_H, bg);
+        if (i == selected) rect(0, y, W, ROW_H, bg);
         drawText(items[(size_t)i], 6, y + ROW_H / 2, 1, LEFT, true, colors && i < (int)colors->size() ? (*colors)[(size_t)i] : C_TEXT, bg);
     }
 }
@@ -311,7 +335,7 @@ bool TextInput::handle(const KeyEvent& k) {
 
 void TextInput::draw(int y, const char* label) const {
     text(6, y, label, C_DIM);
-    lcd().fillRect(6, y + 12, W - 12, 20, C_FOOT);
+    rect(6, y + 12, W - 12, 20, C_FOOT);
     // Show the tail if the value is wider than the box.
     const size_t fit = 24;
     std::string shown = value.size() > fit ? value.substr(value.size() - fit) : value;

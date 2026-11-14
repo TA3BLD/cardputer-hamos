@@ -21,6 +21,10 @@ struct WebServer {
     String arg(const char*) { return ""; }
     bool hasArg(const char*) { return false; }
     void send(int, const char*, const char*) {}
+    void send_P(int, const char*, const char*, size_t) {}
+    void collectHeaders(const char**, size_t) {}
+    String header(const char*) { return ""; }
+    String hostHeader() { return ""; }
     void sendHeader(const char*, const char*) {}
     void setContentLength(size_t) {}
     void sendContent(const char*) {}

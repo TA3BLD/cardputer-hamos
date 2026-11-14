@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HamOS Kontrol</title>
+<style>
+:root{--bg:#10141c;--panel:#182030;--line:#2a3448;--text:#e6ebf5;--dim:#8d99b0;--acc:#3aa0ff;--ok:#3ccf6e;--warn:#ffb03a;--err:#ff5a5a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:17px;margin:0 8px 0 0}
+.pill{padding:3px 10px;border-radius:12px;background:var(--line);color:var(--dim);font-size:13px}
+.pill.on{background:#14402a;color:var(--ok)}
+.pill.off{background:#4a1c1c;color:#ff9b9b}
+nav{display:flex;flex-wrap:wrap;gap:4px;padding:8px 16px;border-bottom:1px solid var(--line)}
+nav button{background:none;border:0;color:var(--dim);padding:7px 12px;border-radius:7px;cursor:pointer;font-size:14px}
+nav button.sel{background:var(--panel);color:var(--text)}
+main{padding:16px;max-width:1150px}
+section{display:none}
+section.sel{display:block}
+button.b,input[type=submit]{background:var(--acc);color:#fff;border:0;border-radius:7px;padding:7px 13px;cursor:pointer;font-size:14px}
+button.b.grey{background:var(--line);color:var(--text)}
+button.b.red{background:#a8323a}
+button.b:disabled{opacity:.45;cursor:default}
+input,select,textarea{background:#0c1018;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:6px 9px;font-size:14px;max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--dim);font-weight:600;position:sticky;top:0;background:var(--bg)}
+.scroll{max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:820px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+.card h3{margin:0 0 8px;font-size:15px}
+.dim{color:var(--dim)}
+.msg{padding:4px 0;border-bottom:1px solid var(--line)}
+.msg.me{color:#9fe6b4}
+#screenWrap{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+#screen{width:720px;max-width:100%;image-rendering:pixelated;image-rendering:crisp-edges;border:2px solid var(--line);border-radius:6px;background:#000;outline:none;aspect-ratio:240/135}
+#screen:focus{border-color:var(--acc)}
+.keys{display:grid;grid-template-columns:repeat(3,56px);gap:6px;margin-top:8px}
+.keys button{height:38px}
+.apps{display:flex;flex-wrap:wrap;gap:6px;max-width:400px}
+.apps button{font-size:13px;padding:6px 10px}
+#toast{position:fixed;right:16px;bottom:16px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px;display:none;max-width:360px}
+.connect{padding:30px;text-align:center}
+.small{font-size:12.5px}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--dim)}
+.settings{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.settings .card{padding:9px}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
+</style>
+</head>
+<body>
+<header>
+  <h1>📻 HamOS</h1>
+  <span id="link" class="pill off">Bağlı değil</span>
+  <span id="who" class="pill">-</span>
+  <span id="bat" class="pill">-</span>
+  <span id="clock" class="pill">-</span>
+  <button id="connectBtn" class="b" style="display:none">Cihaza bağlan (USB)</button>
+  <button id="timeBtn" class="b grey" disabled>Saati PC'den ayarla</button>
+</header>
+<nav id="tabs">
+  <button data-tab="screen" class="sel">Ekran</button>
+  <button data-tab="log">Log</button>
+  <button data-tab="mesh">Meshtastic</button>
+  <button data-tab="aprs">APRS</button>
+  <button data-tab="files">Dosyalar</button>
+  <button data-tab="settings">Ayarlar</button>
+  <button data-tab="status">Durum</button>
+</nav>
+<main>
+  <div id="needConnect" class="card connect" style="display:none"></div>
+
+  <section id="tab-screen" class="sel">
+    <div id="screenWrap">
+      <div>
+        <canvas id="screen" width="240" height="135" tabindex="0"></canvas>
+        <div class="small dim">Ekrana tıklayın, sonra bilgisayar klavyesiyle yazın: Enter, Backspace, Tab, Esc ve ok tuşları çalışır.</div>
+        <form id="typeForm" class="row" autocomplete="off"><input id="typeText" placeholder="Telefondan: yazıp gönderin (Enter ile)" style="flex:1;min-width:0"><button class="b">Yaz</button></form>
+      </div>
+      <div>
+        <div class="row">
+          <button class="b grey" data-key="esc">ESC</button>
+          <button class="b grey" data-key="tab">TAB</button>
+          <button class="b grey" data-key="enter">ENTER</button>
+          <button class="b grey" data-key="del">DEL</button>
+          <button class="b grey" id="homeBtn">Ana ekran</button>
+          <button class="b grey" id="shotBtn">Ekran görüntüsü</button>
+        </div>
+        <div class="keys">
+          <span></span><button class="b grey" data-key="up">▲</button><span></span>
+          <button class="b grey" data-key="left">◀</button><button class="b grey" data-key="down">▼</button><button class="b grey" data-key="right">▶</button>
+        </div>
+        <h3 style="margin:14px 0 6px;font-size:14px">Uygulamalar</h3>
+        <div id="apps" class="apps"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-log">
+    <div class="row">
+      <button class="b" id="logReload">Yenile</button>
+      <button class="b grey" id="logDownload">ADIF indir</button>
+      <label class="b grey" style="cursor:pointer">ADIF içe aktar<input type="file" id="logImport" accept=".adi,.adif" style="display:none"></label>
+      <input id="logFilter" placeholder="Ara (çağrı, bant, mod)">
+      <span id="logInfo" class="dim"></span>
+    </div>
+    <form id="logForm" class="card row">
+      <input name="call" placeholder="Çağrı" required size="9">
+      <input name="freq" placeholder="MHz" size="7">
+      <input name="mode" placeholder="Mod" size="5">
+      <input name="rstSent" placeholder="RST gön." size="5">
+      <input name="rstRcvd" placeholder="RST al." size="5">
+      <input name="grid" placeholder="Grid" size="6">
+      <input name="comment" placeholder="Not" size="16">
+      <input type="submit" value="QSO ekle">
+    </form>
+    <div class="scroll"><table><thead><tr><th>Tarih</th><th>UTC</th><th>Çağrı</th><th>MHz</th><th>Bant</th><th>Mod</th><th>Gön.</th><th>Al.</th><th>Grid</th><th>Not</th><th></th></tr></thead><tbody id="logRows"></tbody></table></div>
+  </section>
+
+  <section id="tab-mesh">
+    <div class="grid2">
+      <div class="card"><h3>Mesajlar <span id="meshState" class="dim small"></span></h3>
+        <div id="meshMsgs" class="scroll" style="max-height:50vh;padding:6px"></div>
+        <form id="meshForm" class="row"><input name="text" placeholder="Mesaj (en fazla 200 karakter)" maxlength="200" style="flex:1"><input type="submit" value="Gönder"></form>
+      </div>
+      <div class="card"><h3>Düğümler</h3>
+        <div class="scroll"><table><thead><tr><th>Kısa</th><th>Ad</th><th>SNR</th><th>Atlama</th><th>Önce</th><th>Konum</th></tr></thead><tbody id="meshNodes"></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-aprs">
+    <div class="grid2">
+      <div class="card"><h3>Mesajlar <span id="aprsState" class="dim small"></span></h3>
+        <div id="aprsMsgs" class="scroll" style="max-height:45vh;padding:6px"></div>
+        <form id="aprsForm" class="row"><input name="to" placeholder="Kime (ÇAĞRI-SSID)" size="11" required><input name="text" placeholder="Mesaj (67 karakter)" maxlength="67" style="flex:1" required><input type="submit" value="Gönder"></form>
+        <button class="b grey" id="beaconBtn">Konumumu gönder</button>
+      </div>
+      <div class="card"><h3>İstasyonlar</h3>
+        <div class="scroll"><table><thead><tr><th>Çağrı</th><th>Konum</th><th>Yol</th><th>Önce</th><th>Not</th></tr></thead><tbody id="aprsStations"></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-files">
+    <div class="row">
+      <button class="b grey" id="upBtn">↑ Üst klasör</button>
+      <b id="path">/</b>
+      <label class="b" style="cursor:pointer">Dosya yükle<input type="file" id="upload" multiple style="display:none"></label>
+      <button class="b grey" id="mkdirBtn">Yeni klasör</button>
+      <span id="fileInfo" class="dim"></span>
+    </div>
+    <div class="scroll"><table><thead><tr><th>Ad</th><th>Boyut</th><th></th></tr></thead><tbody id="fileRows"></tbody></table></div>
+  </section>
+
+  <section id="tab-settings">
+    <div class="row"><button class="b" id="setReload">Yenile</button><label class="dim"><input type="checkbox" id="showSecret"> Şifreleri göster</label><span class="dim small">Boş bırakılan alan varsayılan değere döner.</span></div>
+    <div id="settings" class="settings"></div>
+  </section>
+
+  <section id="tab-status">
+    <div class="row"><button class="b" id="statReload">Yenile</button><button class="b red" id="rebootBtn">Cihazı yeniden başlat</button></div>
+    <div id="statusBox" class="card"></div>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- link ----
+// Two ways to reach the Cardputer: through hamos_pc.py (this page is served
+// by it) or straight over USB with Web Serial (Chrome / Edge).
+// A third way: the Cardputer serves this page itself over WiFi (it adds the
+// "hamos-device" meta tag when it does).
+const onDevice = !!document.querySelector('meta[name="hamos-device"]');
+const viaBridge = !onDevice && location.protocol.startsWith("http") && location.port !== "";
+let connected = false, device = null;
+const pending = new Map();
+let nextId = 1;
+
+function onScreenLine(line) { mirror.line(line); }
+function setConnected(on, info) {
+  connected = on;
+  if (info) device = info;
+  const l = document.getElementById("link");
+  l.textContent = on ? (onDevice ? "Bağlı (WiFi)" : "Bağlı (USB)") : "Bağlı değil";
+  l.className = "pill " + (on ? "on" : "off");
+  document.getElementById("timeBtn").disabled = !on;
+  document.getElementById("needConnect").style.display = on ? "none" : "block";
+  if (on) afterConnect();
+}
+
+const bridge = {
+  async request(req) {
+    const r = await fetch("/api", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(req)});
+    return r.json();
+  },
+  start() {
+    const es = new EventSource("/events");
+    es.onmessage = e => {
+      const d = e.data;
+      if (d.startsWith("~")) onScreenLine(d);
+      else if (d.startsWith("#connected")) { const info = d.length > 11 ? JSON.parse(d.slice(11)) : null; setConnected(!!info, info); }
+      else if (d.startsWith("#disconnected")) setConnected(false);
+    };
+    es.onerror = () => setConnected(false);
+  }
+};
+
+const webSerial = {
+  port: null, writer: null,
+  async request(req) {
+    if (!this.writer) return {ok: false, error: "Bağlı değil"};
+    const id = nextId++;
+    const p = new Promise(res => { pending.set(id, res); setTimeout(() => { if (pending.has(id)) { pending.delete(id); res({ok: false, error: "Cihaz cevap vermedi"}); } }, 8000); });
+    await this.writer.write(new TextEncoder().encode(JSON.stringify(Object.assign({id}, req)) + "\n"));
+    return p;
+  },
+  async open(port) {
+    try { await port.open({baudRate: 115200}); } catch (e) { if (!port.readable) { toast("Port açılamadı: " + e.message); return; } }
+    this.port = port;
+    this.writer = port.writable.getWriter();
+    this.readLoop();
+    const hello = await this.request({cmd: "hello"});
+    setConnected(!!hello.ok, hello.ok ? hello : null);
+  },
+  async readLoop() {
+    const reader = this.port.readable.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    try {
+      for (;;) {
+        const {value, done} = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, {stream: true});
+        let i;
+        while ((i = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, i).replace(/\r$/, "");
+          buf = buf.slice(i + 1);
+          if (line.startsWith("~")) onScreenLine(line);
+          else if (line.startsWith("{")) { try { const r = JSON.parse(line); const f = pending.get(r.id); if (f) { pending.delete(r.id); f(r); } } catch (e) {} }
+        }
+      }
+    } catch (e) {}
+    reader.releaseLock();
+    this.writer = null; this.port = null;
+    setConnected(false);
+  },
+  async start() {
+    const btn = document.getElementById("connectBtn");
+    btn.style.display = "";
+    btn.onclick = async () => {
+      try { const port = await navigator.serial.requestPort({filters: [{usbVendorId: 0x303A}]}); await this.open(port); } catch (e) {}
+    };
+    // Already allowed before: connect at once, and whenever it is plugged in.
+    navigator.serial.addEventListener("connect", e => { if (!this.port) setTimeout(() => this.open(e.target || e.port), 800); });
+    const ports = await navigator.serial.getPorts();
+    if (ports.length) this.open(ports[0]);
+  }
+};
+
+// Served by the Cardputer: requests go to its /api, the screen is fetched
+// from /screen a few times a second.
+const deviceLink = {
+  async request(req) {
+    try {
+      const r = await fetch("/api", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(Object.assign({id: nextId++}, req))});
+      return await r.json();
+    } catch (e) { return {ok: false, error: "Cihaza ulaşılamadı"}; }
+  },
+  async start() {
+    const hello = await this.request({cmd: "hello"});
+    setConnected(!!hello.ok, hello.ok ? hello : null);
+    const poll = async () => {
+      if (connected) {
+        try {
+          const r = await fetch("/screen");
+          const text = await r.text();
+          for (const line of text.split("\n")) if (line.startsWith("~")) onScreenLine(line);
+        } catch (e) {}
+      } else {
+        const h = await this.request({cmd: "hello"});
+        if (h.ok) setConnected(true, h);
+      }
+      setTimeout(poll, connected ? 250 : 3000);
+    };
+    poll();
+  }
+};
+
+const link = onDevice ? deviceLink : viaBridge ? bridge : webSerial;
+async function api(cmd, args) {
+  const r = await link.request(Object.assign({cmd}, args || {}));
+  if (!r.ok && r.error) toast(r.error, true);
+  return r;
+}
+
+// --------------------------------------------------------------- screen ----
+const FONT = [[0x00,0x00,0x00,0x00,0x00],[0x00,0x00,0x5f,0x00,0x00],[0x00,0x03,0x00,0x03,0x00],[0x14,0x7f,0x14,0x7f,0x14],[0x24,0x2a,0x7f,0x2a,0x12],[0x23,0x13,0x08,0x64,0x62],[0x36,0x49,0x55,0x22,0x50],[0x00,0x05,0x03,0x00,0x00],[0x00,0x1c,0x22,0x41,0x00],[0x00,0x41,0x22,0x1c,0x00],[0x14,0x08,0x3e,0x08,0x14],[0x08,0x08,0x3e,0x08,0x08],[0x00,0x50,0x30,0x00,0x00],[0x08,0x08,0x08,0x08,0x08],[0x00,0x60,0x60,0x00,0x00],[0x20,0x10,0x08,0x04,0x02],[0x3e,0x51,0x49,0x45,0x3e],[0x00,0x42,0x7f,0x40,0x00],[0x42,0x61,0x51,0x49,0x46],[0x21,0x41,0x45,0x4b,0x31],[0x18,0x14,0x12,0x7f,0x10],[0x27,0x45,0x45,0x45,0x39],[0x3c,0x4a,0x49,0x49,0x30],[0x01,0x71,0x09,0x05,0x03],[0x36,0x49,0x49,0x49,0x36],[0x06,0x49,0x49,0x29,0x1e],[0x00,0x36,0x36,0x00,0x00],[0x00,0x56,0x36,0x00,0x00],[0x08,0x14,0x22,0x41,0x00],[0x14,0x14,0x14,0x14,0x14],[0x00,0x41,0x22,0x14,0x08],[0x02,0x01,0x51,0x09,0x06],[0x32,0x49,0x79,0x41,0x3e],[0x7e,0x11,0x11,0x11,0x7e],[0x7f,0x49,0x49,0x49,0x36],[0x3e,0x41,0x41,0x41,0x22],[0x7f,0x41,0x41,0x22,0x1c],[0x7f,0x49,0x49,0x49,0x41],[0x7f,0x09,0x09,0x09,0x01],[0x3e,0x41,0x49,0x49,0x7a],[0x7f,0x08,0x08,0x08,0x7f],[0x00,0x41,0x7f,0x41,0x00],[0x20,0x40,0x41,0x3f,0x01],[0x7f,0x08,0x14,0x22,0x41],[0x7f,0x40,0x40,0x40,0x40],[0x7f,0x02,0x0c,0x02,0x7f],[0x7f,0x04,0x08,0x10,0x7f],[0x3e,0x41,0x41,0x41,0x3e],[0x7f,0x09,0x09,0x09,0x06],[0x3e,0x41,0x51,0x21,0x5e],[0x7f,0x09,0x19,0x29,0x46],[0x46,0x49,0x49,0x49,0x31],[0x01,0x01,0x7f,0x01,0x01],[0x3f,0x40,0x40,0x40,0x3f],[0x1f,0x20,0x40,0x20,0x1f],[0x3f,0x40,0x38,0x40,0x3f],[0x63,0x14,0x08,0x14,0x63],[0x07,0x08,0x70,0x08,0x07],[0x61,0x51,0x49,0x45,0x43],[0x00,0x7f,0x41,0x41,0x00],[0x02,0x04,0x08,0x10,0x20],[0x00,0x41,0x41,0x7f,0x00],[0x04,0x02,0x01,0x02,0x04],[0x40,0x40,0x40,0x40,0x40],[0x00,0x01,0x02,0x04,0x00],[0x20,0x54,0x54,0x54,0x78],[0x7f,0x48,0x44,0x44,0x38],[0x38,0x44,0x44,0x44,0x20],[0x38,0x44,0x44,0x48,0x7f],[0x38,0x54,0x54,0x54,0x18],[0x08,0x7e,0x09,0x01,0x02],[0x0c,0x52,0x52,0x52,0x3e],[0x7f,0x08,0x04,0x04,0x78],[0x00,0x44,0x7d,0x40,0x00],[0x20,0x40,0x44,0x3d,0x00],[0x7f,0x10,0x28,0x44,0x00],[0x00,0x41,0x7f,0x40,0x00],[0x7c,0x04,0x18,0x04,0x78],[0x7c,0x08,0x04,0x04,0x78],[0x38,0x44,0x44,0x44,0x38],[0x7c,0x14,0x14,0x14,0x08],[0x08,0x14,0x14,0x18,0x7c],[0x7c,0x08,0x04,0x04,0x08],[0x48,0x54,0x54,0x54,0x20],[0x04,0x3f,0x44,0x40,0x20],[0x3c,0x40,0x40,0x20,0x7c],[0x1c,0x20,0x40,0x20,0x1c],[0x3c,0x40,0x30,0x40,0x3c],[0x44,0x28,0x10,0x28,0x44],[0x0c,0x50,0x50,0x50,0x3c],[0x44,0x64,0x54,0x4c,0x44],[0x00,0x08,0x36,0x41,0x00],[0x00,0x00,0x7f,0x00,0x00],[0x00,0x41,0x36,0x08,0x00],[0x10,0x08,0x08,0x10,0x08]];
+const mirror = (() => {
+  const canvas = document.getElementById("screen");
+  const ctx = canvas.getContext("2d");
+  const W = 240, H = 135;
+  const img = ctx.createImageData(W, H);
+  const px = new Uint32Array(img.data.buffer);
+  let queued = false;
+  function color(c) {
+    const r = (c >> 11 & 31) * 255 / 31 | 0, g = (c >> 5 & 63) * 255 / 63 | 0, b = (c & 31) * 255 / 31 | 0;
+    return 0xff000000 | b << 16 | g << 8 | r;
+  }
+  function put(x, y, c) { if (x >= 0 && y >= 0 && x < W && y < H) px[y * W + x] = c; }
+  function fill(x, y, w, h, c) {
+    for (let j = Math.max(0, y); j < Math.min(H, y + h); j++)
+      for (let i = Math.max(0, x); i < Math.min(W, x + w); i++) px[j * W + i] = c;
+  }
+  function line(x0, y0, x1, y1, c) {
+    let dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, e = dx + dy;
+    for (let n = 0; n < 2000; n++) {
+      put(x0, y0, c);
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = 2 * e;
+      if (e2 >= dy) { e += dy; x0 += sx; }
+      if (e2 <= dx) { e += dx; y0 += sy; }
+    }
+  }
+  function circle(cx, cy, r, c, filled) {
+    for (let y = -r; y <= r; y++) {
+      const w = Math.round(Math.sqrt(r * r - y * y));
+      if (filled) fill(cx - w, cy + y, 2 * w + 1, 1, c);
+      else { put(cx - w, cy + y, c); put(cx + w, cy + y, c); }
+    }
+    if (!filled) for (let x = -r; x <= r; x++) { const h = Math.round(Math.sqrt(r * r - x * x)); put(cx + x, cy - h, c); put(cx + x, cy + h, c); }
+  }
+  function triangle(p, c) {
+    const ys = [p[1], p[3], p[5]], y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const edges = [[p[0], p[1], p[2], p[3]], [p[2], p[3], p[4], p[5]], [p[4], p[5], p[0], p[1]]];
+    for (let y = y0; y <= y1; y++) {
+      const xs = [];
+      for (const [ax, ay, bx, by] of edges) if ((y >= ay && y <= by) || (y >= by && y <= ay)) xs.push(ay === by ? ax : ax + (bx - ax) * (y - ay) / (by - ay));
+      if (xs.length) { const a = Math.round(Math.min(...xs)), b = Math.round(Math.max(...xs)); fill(a, y, b - a + 1, 1, c); }
+    }
+  }
+  function text(x, y, size, fg, bg, s) {
+    const cell = 6 * size;
+    for (let k = 0; k < s.length; k++) {
+      const gx = x + k * cell;
+      if (bg >= 0) fill(Math.floor(gx), y, Math.round(cell), Math.round(8 * size), color(bg));
+      const code = s.charCodeAt(k), g = FONT[(code >= 32 && code <= 126 ? code : 63) - 32];
+      for (let col = 0; col < 5; col++) for (let row = 0; row < 8; row++)
+        if (g[col] >> row & 1) {
+          const x0 = Math.floor(gx + col * size), y0 = Math.floor(y + row * size);
+          fill(x0, y0, Math.floor(gx + (col + 1) * size) - x0, Math.floor(y + (row + 1) * size) - y0, color(fg));
+        }
+    }
+  }
+  function image(x, y, w, h, b64) {
+    const raw = atob(b64);
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      const k = 2 * (j * w + i);
+      put(x + i, y + j, color(raw.charCodeAt(k) << 8 | raw.charCodeAt(k + 1)));
+    }
+  }
+  function show() { queued = false; ctx.putImageData(img, 0, 0); }
+  return {
+    canvas,
+    line(l) {
+      const t = l[1], parts = l.slice(3).split(" ");
+      const n = parts.map(Number);
+      switch (t) {
+        case "R": fill(n[0], n[1], n[2], n[3], color(n[4])); break;
+        case "L": line(n[0], n[1], n[2], n[3], color(n[4])); break;
+        case "C": circle(n[0], n[1], n[2], color(n[3]), n[4] === 1); break;
+        case "G": triangle(n.slice(0, 6), color(n[6])); break;
+        case "F": line(n[0], n[1], n[0] + n[2] - 1, n[1], color(n[4])); line(n[0], n[1] + n[3] - 1, n[0] + n[2] - 1, n[1] + n[3] - 1, color(n[4]));
+                  line(n[0], n[1], n[0], n[1] + n[3] - 1, color(n[4])); line(n[0] + n[2] - 1, n[1], n[0] + n[2] - 1, n[1] + n[3] - 1, color(n[4])); break;
+        case "T": { const head = l.slice(3).match(/^(-?\d+) (-?\d+) ([\d.]+) (\d+) (-?\d+) /); if (head) text(+head[1], +head[2], +head[3], +head[4], +head[5], l.slice(3 + head[0].length)); break; }
+        case "I": image(n[0], n[1], n[2], n[3], parts[4]); break;
+      }
+      if (!queued) { queued = true; requestAnimationFrame(show); }
+    }
+  };
+})();
+
+const KEYMAP = {Enter: "enter", Backspace: "del", Tab: "tab", Escape: "esc", ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right"};
+const TR = {"ç": "c", "Ç": "C", "ğ": "g", "Ğ": "G", "ı": "i", "İ": "I", "ö": "o", "Ö": "O", "ş": "s", "Ş": "S", "ü": "u", "Ü": "U"};
+let keyChain = Promise.resolve();
+function sendKey(req) { keyChain = keyChain.then(() => link.request(Object.assign({cmd: "key"}, req))); }
+mirror.canvas.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (KEYMAP[e.key]) { sendKey({key: KEYMAP[e.key]}); e.preventDefault(); return; }
+  let ch = TR[e.key] || e.key;
+  if (ch.length === 1 && ch >= " " && ch <= "~") { sendKey({ch}); e.preventDefault(); }
+});
+mirror.canvas.addEventListener("click", () => mirror.canvas.focus());
+// Typing without a keyboard on the page (phones): the text goes in as key presses, then Enter.
+document.getElementById("typeForm").onsubmit = e => {
+  e.preventDefault();
+  const box = document.getElementById("typeText");
+  for (const c of box.value) { const ch = TR[c] || c; if (ch >= " " && ch <= "~") sendKey({ch}); }
+  sendKey({key: "enter"});
+  box.value = "";
+};
+document.querySelectorAll("[data-key]").forEach(b => b.onclick = () => sendKey({key: b.dataset.key}));
+document.getElementById("homeBtn").onclick = () => api("app.open", {name: "home"});
+document.getElementById("shotBtn").onclick = () => {
+  const c = document.createElement("canvas"); c.width = 720; c.height = 405;
+  const x = c.getContext("2d"); x.imageSmoothingEnabled = false; x.drawImage(mirror.canvas, 0, 0, 720, 405);
+  const a = document.createElement("a"); a.download = "hamos-" + new Date().toISOString().slice(0, 19).replace(/:/g, "") + ".png"; a.href = c.toDataURL(); a.click();
+};
+
+// ---------------------------------------------------------------- tabs ----
+let tab = "screen";
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+  tab = b.dataset.tab;
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("sel", x === b));
+  document.querySelectorAll("section").forEach(s => s.classList.toggle("sel", s.id === "tab-" + tab));
+  refreshTab();
+});
+function refreshTab() {
+  if (!connected) return;
+  ({log: loadLog, mesh: loadMesh, aprs: loadAprs, files: () => loadFiles(cwd), settings: loadSettings, status: loadStatus}[tab] || (() => {}))();
+}
+
+function toast(text, bad) {
+  const t = document.getElementById("toast");
+  t.textContent = text; t.style.display = "block"; t.style.borderColor = bad ? "var(--err)" : "var(--ok)";
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", 3500);
+}
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const ago = s => s < 60 ? s + " sn" : s < 3600 ? Math.round(s / 60) + " dk" : Math.round(s / 3600) + " sa";
+const size = n => n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(1) + " KB" : (n / 1048576).toFixed(1) + " MB";
+
+// -------------------------------------------------------- after connect ----
+async function afterConnect() {
+  document.getElementById("who").textContent = (device.callsign || "çağrı yok") + " · " + (device.grid || "grid yok");
+  const apps = document.getElementById("apps");
+  apps.innerHTML = "";
+  for (const name of device.apps || []) {
+    const b = document.createElement("button"); b.className = "b grey"; b.textContent = name;
+    b.onclick = () => api("app.open", {name}); apps.appendChild(b);
+  }
+  await api("screen.mirror", {on: true});
+  refreshTab();
+}
+
+// Every two seconds: header values; this also keeps the screen mirror alive.
+setInterval(async () => {
+  if (!connected) return;
+  const s = await link.request({cmd: "status"});
+  if (!s.ok) { if (onDevice) setConnected(false); return; }
+  document.getElementById("bat").textContent = "Pil %" + s.battery;
+  document.getElementById("clock").textContent = s.timeValid ? new Date(s.utc).toISOString().slice(11, 16) + " UTC" : "saat yok";
+  document.getElementById("who").textContent = (s.callsign || "çağrı yok") + " · " + (s.grid || "grid yok") + " · " + s.app;
+  if (tab === "mesh" && s.mesh.unread) loadMesh();
+  if (tab === "aprs" && s.aprs.unread) loadAprs();
+  if (tab === "status") showStatus(s);
+}, 2000);
+
+document.getElementById("timeBtn").onclick = async () => {
+  const r = await api("time.set", {ms: Date.now()});
+  if (r.ok) toast("Cihazın saati ayarlandı");
+};
+
+// ------------------------------------------------------------------ log ----
+let qsos = [];
+async function loadLog() {
+  const r = await api("log.list");
+  if (!r.ok) return;
+  qsos = r.qsos;
+  document.getElementById("logInfo").textContent = "Logda " + r.total + " QSO" + (r.total > qsos.length ? " (son " + qsos.length + " gösteriliyor)" : "");
+  drawLog();
+}
+function drawLog() {
+  const f = document.getElementById("logFilter").value.toUpperCase();
+  const rows = qsos.slice().reverse().filter(q => !f || (q.call + " " + q.band + " " + q.mode + " " + q.grid).toUpperCase().includes(f));
+  document.getElementById("logRows").innerHTML = rows.map(q => "<tr><td>" + esc(q.date.replace(/(\d{4})(\d\d)(\d\d)/, "$3.$2.$1")) + "</td><td>" + esc(q.time) +
+    "</td><td><b>" + esc(q.call) + "</b></td><td>" + esc(q.freq) + "</td><td>" + esc(q.band) + "</td><td>" + esc(q.mode) + "</td><td>" + esc(q.rstSent) +
+    "</td><td>" + esc(q.rstRcvd) + "</td><td>" + esc(q.grid) + "</td><td>" + esc(q.comment) + "</td><td><button class='b red small' data-del='" + q.index + "'>Sil</button></td></tr>").join("");
+  document.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    const q = qsos.find(x => x.index == b.dataset.del);
+    if (!confirm(q.call + " silinsin mi?")) return;
+    const r = await api("log.delete", {index: q.index, call: q.call});
+    if (r.ok) { toast(q.call + " silindi"); loadLog(); }
+  });
+}
+document.getElementById("logFilter").oninput = drawLog;
+document.getElementById("logReload").onclick = loadLog;
+document.getElementById("logForm").onsubmit = async e => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  const r = await api("log.add", data);
+  if (r.ok) { toast(data.call.toUpperCase() + " loga eklendi"); e.target.reset(); loadLog(); }
+};
+document.getElementById("logDownload").onclick = async () => {
+  const data = await readFile("/HamOS/log.adi");
+  if (data) save(data, "hamos-log.adi");
+};
+document.getElementById("logImport").onchange = async e => {
+  const file = e.target.files[0]; if (!file) return;
+  const recs = parseAdif(await file.text());
+  if (!confirm(recs.length + " QSO eklenecek. Devam?")) return;
+  let n = 0;
+  for (const q of recs) { const r = await link.request(Object.assign({cmd: "log.add"}, q)); if (r.ok) n++; document.getElementById("logInfo").textContent = n + " / " + recs.length; }
+  toast(n + " QSO eklendi"); e.target.value = ""; loadLog();
+};
+function parseAdif(text) {
+  const out = []; let cur = {};
+  const map = {CALL: "call", FREQ: "freq", MODE: "mode", RST_SENT: "rstSent", RST_RCVD: "rstRcvd", GRIDSQUARE: "grid", COMMENT: "comment", QSO_DATE: "date", TIME_ON: "time"};
+  const re = /<([A-Za-z_]+)(?::(\d+)(?::[^>]*)?)?>/g; let m;
+  const eoh = text.search(/<eoh>/i); if (eoh >= 0) re.lastIndex = eoh + 5;
+  while ((m = re.exec(text))) {
+    const tag = m[1].toUpperCase();
+    if (tag === "EOR") { if (cur.call) out.push(cur); cur = {}; continue; }
+    const len = +(m[2] || 0), val = text.substr(re.lastIndex, len); re.lastIndex += len;
+    if (map[tag]) cur[map[tag]] = tag === "TIME_ON" ? val.slice(0, 4) : val;
+  }
+  return out;
+}
+
+// ----------------------------------------------------------------- mesh ----
+async function loadMesh() {
+  const r = await api("mesh.list"); if (!r.ok) return;
+  document.getElementById("meshState").textContent = r.ready ? "· hazır" : "· " + r.status;
+  const box = document.getElementById("meshMsgs");
+  box.innerHTML = r.messages.map(m => "<div class='msg" + (m.mine ? " me" : "") + "'><span class='dim small'>" + esc(m.time.slice(11)) + "</span> <b>" + esc(m.mine ? "Ben" : m.from) + "</b>" +
+    (m.direct ? " <span class='warn small'>(özel)</span>" : "") + ": " + esc(m.text) + (m.mine ? (m.relayed ? " <span class='ok small'>✓ ağa ulaştı</span>" : m.sent ? " <span class='dim small'>gönderildi</span>" : " <span class='dim small'>sırada</span>") : "") + "</div>").join("") || "<div class='dim'>Mesaj yok</div>";
+  box.scrollTop = box.scrollHeight;
+  document.getElementById("meshNodes").innerHTML = r.nodes.map(n => "<tr><td><b>" + esc(n.short) + "</b></td><td>" + esc(n.long) + "<div class='dim small'>" + esc(n.id) + "</div></td><td>" + n.snr.toFixed(1) +
+    "</td><td>" + n.hops + "</td><td>" + ago(n.ago) + "</td><td>" + (n.lat !== undefined ? n.lat.toFixed(3) + ", " + n.lon.toFixed(3) : "-") + "</td></tr>").join("");
+}
+document.getElementById("meshForm").onsubmit = async e => {
+  e.preventDefault();
+  const text = e.target.text.value.trim(); if (!text) return;
+  const r = await api("mesh.send", {text});
+  if (r.ok) { e.target.reset(); setTimeout(loadMesh, 300); }
+};
+
+// ----------------------------------------------------------------- aprs ----
+async function loadAprs() {
+  const r = await api("aprs.list"); if (!r.ok) return;
+  document.getElementById("aprsState").textContent = "· " + (r.lora ? "LoRa-APRS açık · " : "") + r.status;
+  const box = document.getElementById("aprsMsgs");
+  box.innerHTML = r.messages.map(m => "<div class='msg" + (m.mine ? " me" : "") + "'><b>" + esc(m.mine ? "→ " + m.to : m.from) + "</b>: " + esc(m.text) + (m.mine && m.acked ? " <span class='ok small'>✓ onaylandı</span>" : "") + "</div>").join("") || "<div class='dim'>Mesaj yok</div>";
+  box.scrollTop = box.scrollHeight;
+  const via = {internet: "İnternet", audio: "Ses (RF)", lora: "LoRa"};
+  document.getElementById("aprsStations").innerHTML = r.stations.map(s => "<tr><td><b>" + esc(s.call) + "</b></td><td>" + s.lat.toFixed(3) + ", " + s.lon.toFixed(3) +
+    "</td><td>" + via[s.via] + "</td><td>" + ago(s.ago) + "</td><td class='small'>" + esc(s.comment) + "</td></tr>").join("");
+}
+document.getElementById("aprsForm").onsubmit = async e => {
+  e.preventDefault();
+  const r = await api("aprs.send", {to: e.target.to.value.trim().toUpperCase(), text: e.target.text.value});
+  if (r.ok) { e.target.text.value = ""; setTimeout(loadAprs, 300); }
+};
+document.getElementById("beaconBtn").onclick = async () => { if ((await api("aprs.beacon")).ok) toast("Konum gönderildi"); };
+
+// ---------------------------------------------------------------- files ----
+let cwd = "/";
+const join = (dir, name) => (dir === "/" ? "" : dir) + "/" + name;
+async function loadFiles(path) {
+  const r = await api("files.list", {path}); if (!r.ok) return;
+  cwd = path;
+  document.getElementById("path").textContent = path;
+  document.getElementById("fileRows").innerHTML = r.entries.map(e => "<tr><td>" + (e.dir ? "📁 <a href='#' data-open='" + esc(e.name) + "'>" + esc(e.name) + "</a>" : "📄 " + esc(e.name)) +
+    "</td><td>" + (e.dir ? "" : size(e.size)) + "</td><td>" + (e.dir ? "" : "<button class='b grey small' data-get='" + esc(e.name) + "'>İndir</button> ") +
+    "<button class='b red small' data-rm='" + esc(e.name) + "'>Sil</button></td></tr>").join("") || "<tr><td class='dim'>Boş klasör</td></tr>";
+  document.querySelectorAll("[data-open]").forEach(a => a.onclick = e => { e.preventDefault(); loadFiles(join(cwd, a.dataset.open)); });
+  document.querySelectorAll("[data-get]").forEach(b => b.onclick = async () => { const d = await readFile(join(cwd, b.dataset.get)); if (d) save(d, b.dataset.get); });
+  document.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => {
+    if (!confirm(b.dataset.rm + " silinsin mi?")) return;
+    if ((await api("files.delete", {path: join(cwd, b.dataset.rm)})).ok) loadFiles(cwd);
+  });
+}
+document.getElementById("upBtn").onclick = () => { if (cwd !== "/") loadFiles(cwd.slice(0, cwd.lastIndexOf("/")) || "/"); };
+document.getElementById("mkdirBtn").onclick = async () => {
+  const name = prompt("Klasör adı"); if (!name) return;
+  if ((await api("files.mkdir", {path: join(cwd, name)})).ok) loadFiles(cwd);
+};
+document.getElementById("upload").onchange = async e => {
+  for (const file of e.target.files) {
+    const data = new Uint8Array(await file.arrayBuffer());
+    const path = join(cwd, file.name);
+    for (let off = 0; off === 0 || off < data.length; off += 2048) {
+      const part = data.subarray(off, off + 2048);
+      let bin = ""; for (const b of part) bin += String.fromCharCode(b);
+      const r = await api("files.write", {path, offset: off, data: btoa(bin)});
+      if (!r.ok) return;
+      document.getElementById("fileInfo").textContent = file.name + ": %" + Math.round(100 * Math.min(data.length, off + 2048) / Math.max(1, data.length));
+    }
+  }
+  document.getElementById("fileInfo").textContent = "Yükleme tamam";
+  e.target.value = ""; loadFiles(cwd);
+};
+async function readFile(path) {
+  const parts = []; let off = 0;
+  for (;;) {
+    const r = await api("files.read", {path, offset: off}); if (!r.ok) return null;
+    const bin = atob(r.data), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    parts.push(bytes); off += bytes.length;
+    document.getElementById("fileInfo").textContent = path.split("/").pop() + ": %" + Math.round(100 * off / Math.max(1, r.size));
+    if (r.eof || !bytes.length) break;
+  }
+  document.getElementById("fileInfo").textContent = "";
+  return new Blob(parts);
+}
+function save(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }
+
+// ------------------------------------------------------------- settings ----
+async function loadSettings() {
+  const r = await api("config.list"); if (!r.ok) return;
+  const show = document.getElementById("showSecret").checked;
+  const box = document.getElementById("settings");
+  box.innerHTML = r.fields.map(f => "<form class='card' data-key='" + esc(f.key) + "'><label class='f'>" + esc(f.label) + " <span class='small'>(" + esc(f.key) + ")</span>" +
+    "<div class='row' style='margin:2px 0'><input name='v' value='" + esc(f.value) + "' placeholder='" + esc(f.default) + "' maxlength='" + f.max + "' type='" + (f.secret && !show ? "password" : "text") + "' style='flex:1'>" +
+    "<input type='submit' value='Kaydet'></div></label></form>").join("") +
+    Object.entries(r.other).map(([k, v]) => "<form class='card' data-key='" + esc(k) + "'><label class='f'>" + esc(k) + " <span class='small'>(elle eklenmiş)</span><div class='row' style='margin:2px 0'><input name='v' value='" + esc(v) + "' style='flex:1'><input type='submit' value='Kaydet'></div></label></form>").join("");
+  box.querySelectorAll("form").forEach(f => f.onsubmit = async e => {
+    e.preventDefault();
+    const r = await api("config.set", {key: f.dataset.key, value: f.v.value});
+    if (r.ok) toast(r.saved ? "Kaydedildi" : "Uygulandı ama SD kart yok: kalıcı değil", !r.saved);
+  });
+}
+document.getElementById("setReload").onclick = loadSettings;
+document.getElementById("showSecret").onchange = loadSettings;
+
+// --------------------------------------------------------------- status ----
+async function loadStatus() { const s = await api("status"); if (s.ok) showStatus(s); }
+function showStatus(s) {
+  const rows = [
+    ["Çağrı / grid", (s.callsign || "-") + " / " + (s.grid || "-")], ["Yazılım", s.name + " " + s.version], ["Açık uygulama", s.app],
+    ["Pil", "%" + s.battery], ["Boş bellek", size(s.heap)], ["Çalışma süresi", ago(Math.round(s.uptime / 1000))],
+    ["Saat", s.timeValid ? new Date(s.utc).toISOString().replace("T", " ").slice(0, 19) + " UTC" : "<span class='warn'>ayarlı değil</span>"],
+    ["WiFi", s.wifi ? "<span class='ok'>bağlı</span> " + esc(s.ip) : "bağlı değil"], ["SD kart", s.sd ? "<span class='ok'>var</span>" : "<span class='err'>yok</span>"],
+    ["GPS", s.gps.fix ? "<span class='ok'>konum var</span> " + s.gps.lat.toFixed(4) + ", " + s.gps.lon.toFixed(4) + " (" + s.gps.sats + " uydu)" : s.gps.present ? "aranıyor" : "yok"],
+    ["Meshtastic", s.mesh.ready ? "<span class='ok'>hazır</span>" : esc(s.mesh.status)], ["APRS-IS", s.aprs.online ? "<span class='ok'>bağlı</span>" : esc(s.aprs.status)],
+    ["LoRa-APRS", s.aprs.lora ? "<span class='ok'>açık</span>" : esc(s.aprs.loraStatus)], ["Log", s.log + " QSO"]];
+  document.getElementById("statusBox").innerHTML = "<table>" + rows.map(r => "<tr><th>" + r[0] + "</th><td>" + r[1] + "</td></tr>").join("") + "</table>";
+}
+document.getElementById("statReload").onclick = loadStatus;
+document.getElementById("rebootBtn").onclick = async () => { if (confirm("Cihaz yeniden başlatılsın mı?")) api("reboot"); };
+
+// ---------------------------------------------------------------- start ----
+const need = document.getElementById("needConnect");
+if (onDevice) {
+  need.innerHTML = "<h3>Cardputer'a bağlanılıyor…</h3><p class='dim'>Cihaz ile bu cihaz aynı WiFi ağında olmalı.</p>";
+  deviceLink.start();
+} else if (viaBridge) {
+  need.innerHTML = "<h3>Cardputer bekleniyor…</h3><p class='dim'>Cardputer'ı USB kablosuyla bilgisayara takın; bağlantı kendiliğinden kurulur.</p>";
+  bridge.start();
+} else if ("serial" in navigator) {
+  need.innerHTML = "<h3>Cardputer'ı USB ile takın</h3><p class='dim'>İlk seferde yukarıdaki <b>Cihaza bağlan (USB)</b> düğmesine basıp portu seçin. Sonraki seferlerde takar takmaz bağlanır.</p>";
+  webSerial.start();
+} else {
+  need.innerHTML = "<h3>Bu tarayıcı USB'ye erişemiyor</h3><p class='dim'>Chrome veya Edge ile açın, ya da bilgisayarda <b>python hamos_pc.py</b> çalıştırın.</p>";
+}
+setConnected(false);
+</script>
+</body>
+</html>

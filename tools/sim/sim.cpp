@@ -13,6 +13,8 @@
 #include "lib/Bmp.h"
 #include "lib/Sstv.h"
 #include "lib/Psk31.h"
+#include "lib/MiniJson.h"
+#include "lib/Base64.h"
 #include "lib/Meshtastic.h"
 #include "lib/Wsjtx.h"
 #include "mbedtls/aes.h"
@@ -20,6 +22,7 @@
 uint32_t sim_ms = 1000;
 static long long sim_epoch_ms = (long long)time(nullptr) / 15 * 15000;     // a period boundary
 long long sim_utc_ms() { return sim_epoch_ms + sim_ms; }
+size_t sim_usb_write(const uint8_t* data, size_t n) { Serial.tx.append((const char*)data, n); return n; }
 static int failures = 0;
 #define EXPECT(cond) do { if (!(cond)) { fprintf(stderr, "SIM CHECK FAILED line %d: %s\n", __LINE__, #cond); failures++; } } while (0)
 
@@ -108,6 +111,38 @@ static bool contains(const std::vector<std::string>& v, const std::string& prefi
         if (s.compare(0, prefix.size(), prefix) == 0) return true;
     return false;
 }
+
+// ---- USB link: send one request line, return the reply (and the other lines in `extra`) ----
+static int usbId = 100;
+static json::Object usbCall(std::string body, std::string* extra = nullptr) {
+    int id = ++usbId;
+    std::string line = "{\"id\":" + std::to_string(id) + (body.empty() ? "" : "," + body) + "}\n";
+    Serial.inject(line);
+    Serial.tx.clear();
+    run(30);
+    json::Object reply;
+    std::string want = "{\"id\":" + std::to_string(id) + ",";
+    size_t pos = 0;
+    while (pos < Serial.tx.size()) {
+        size_t end = Serial.tx.find('\n', pos);
+        if (end == std::string::npos) end = Serial.tx.size();
+        std::string l = Serial.tx.substr(pos, end - pos);
+        if (l.compare(0, want.size(), want) == 0) {
+            // flat fields only: lists are checked by text
+            json::Object flat;
+            reply.values["_raw"] = l;
+            size_t cut = l.find(",\"", want.size() - 1);
+            (void)cut;
+        } else if (extra) {
+            *extra += l + "\n";
+        }
+        pos = end + 1;
+    }
+    std::string raw = reply.str("_raw");
+    reply.values["ok"] = raw.find("\"ok\":true") != std::string::npos ? "true" : "false";
+    return reply;
+}
+static bool has(const json::Object& r, const std::string& text) { return r.str("_raw").find(text) != std::string::npos; }
 
 // Lets whatever HamOS is playing finish.
 static void runUntilQuiet() {
@@ -738,6 +773,79 @@ int main() {
     key('j'); enter();                         // the first country starting with J
     shot("country");
     back(); back();
+
+    // ---- USB link: what the PC program does ----
+    {
+        back();                                // to the launcher
+        json::Object r = usbCall("\"cmd\":\"hello\"");
+        EXPECT(r.flag("ok") && has(r, "\"callsign\":\"TA3BLD\"") && has(r, "\"apps\":[\"Logbook\",\"Mesh\"") && has(r, "\"Settings\"]"));
+        EXPECT(!usbCall("\"cmd\":\"nonsense\"").flag("ok") && !usbCall("\"cmd\":\"files.read\",\"path\":\"../x\"").flag("ok"));
+        // Settings
+        r = usbCall("\"cmd\":\"config.list\"");
+        EXPECT(r.flag("ok") && has(r, "{\"key\":\"grid\",\"label\":\"Grid locator\",\"default\":\"\",\"value\":\"KM38nk\""));
+        EXPECT(usbCall("\"cmd\":\"config.set\",\"key\":\"utc_offset\",\"value\":\"2\"").flag("ok") && config::get("utc_offset") == "2");
+        usbCall("\"cmd\":\"config.set\",\"key\":\"utc_offset\",\"value\":\"\"");
+        EXPECT(config::get("utc_offset", "x") == "x");
+        // Files: write in two pieces, list, read back, delete
+        std::string a = "Merhaba \xc3\xa7\xc4\x9f ", b(5000, 'x');
+        EXPECT(usbCall("\"cmd\":\"files.write\",\"path\":\"/HamOS/usbtest.txt\",\"offset\":0,\"data\":\"" + base64::encode((const uint8_t*)a.data(), a.size()) + "\"").flag("ok"));
+        EXPECT(usbCall("\"cmd\":\"files.write\",\"path\":\"/HamOS/usbtest.txt\",\"offset\":" + std::to_string(a.size()) + ",\"data\":\"" + base64::encode((const uint8_t*)b.data(), b.size()) + "\"").flag("ok"));
+        EXPECT(!usbCall("\"cmd\":\"files.write\",\"path\":\"/HamOS/usbtest.txt\",\"offset\":3,\"data\":\"eA==\"").flag("ok"));
+        r = usbCall("\"cmd\":\"files.list\",\"path\":\"/HamOS\"");
+        EXPECT(has(r, "{\"name\":\"guide\",\"dir\":true") && has(r, "{\"name\":\"usbtest.txt\",\"dir\":false,\"size\":" + std::to_string(a.size() + b.size())));
+        std::string back64;
+        for (int off = 0; off < (int)(a.size() + b.size()); off += 3072) {
+            r = usbCall("\"cmd\":\"files.read\",\"path\":\"/HamOS/usbtest.txt\",\"offset\":" + std::to_string(off));
+            std::string raw = r.str("_raw");
+            size_t d = raw.find("\"data\":\"") + 8, e = raw.find('"', d);
+            back64 += base64::decode(raw.substr(d, e - d));
+        }
+        EXPECT(back64 == a + b);
+        EXPECT(usbCall("\"cmd\":\"files.delete\",\"path\":\"/HamOS/usbtest.txt\"").flag("ok") && !storage::exists("/HamOS/usbtest.txt"));
+        // Logbook
+        size_t before = logbook::total();
+        EXPECT(usbCall("\"cmd\":\"log.add\",\"call\":\"ok1abc\",\"freq\":\"7.074\",\"mode\":\"ft8\",\"rstSent\":\"-05\",\"rstRcvd\":\"-11\",\"grid\":\"JO70\"").flag("ok"));
+        EXPECT(logbook::total() == before + 1);
+        r = usbCall("\"cmd\":\"log.list\"");
+        EXPECT(has(r, "\"call\":\"OK1ABC\"") && has(r, "\"band\":\"40m\"") && has(r, "\"grid\":\"JO70\""));
+        size_t idx = logbook::recent().size() - 1;
+        EXPECT(!usbCall("\"cmd\":\"log.delete\",\"index\":" + std::to_string(idx) + ",\"call\":\"WRONG\"").flag("ok"));
+        EXPECT(usbCall("\"cmd\":\"log.delete\",\"index\":" + std::to_string(idx) + ",\"call\":\"OK1ABC\"").flag("ok") && logbook::total() == before);
+        // Radio data
+        size_t loraBefore = sim_lora_sent.size();
+        EXPECT(usbCall("\"cmd\":\"mesh.send\",\"text\":\"PC'den selam\"").flag("ok"));
+        run(3000);
+        EXPECT(sim_lora_sent.size() == loraBefore + 1);
+        r = usbCall("\"cmd\":\"mesh.list\"");
+        EXPECT(has(r, "\"text\":\"PC'den selam\",") && has(r, "\"long\":\"Bornova Repeater\""));
+        r = usbCall("\"cmd\":\"aprs.list\"");
+        EXPECT(has(r, "\"call\":\"TA3XYZ-9\"") && has(r, "\"via\":\"lora\""));
+        // Remote control: open an app, press keys, mirror the screen
+        EXPECT(usbCall("\"cmd\":\"app.open\",\"name\":\"Countries\"").flag("ok") && std::string(current->name()) == "Countries");
+        EXPECT(usbCall("\"cmd\":\"key\",\"ch\":\"t\"").flag("ok") && usbCall("\"cmd\":\"key\",\"key\":\"enter\"").flag("ok"));
+        std::string screen;
+        r = usbCall("\"cmd\":\"screen.mirror\",\"on\":true", &screen);
+        run(1200);
+        screen += Serial.tx;
+        EXPECT(r.flag("ok") && screen.find("~R 0 0 240 135") != std::string::npos && screen.find("~T ") != std::string::npos &&
+               screen.find("~I ") != std::string::npos);             // the big flag
+        EXPECT(usbCall("\"cmd\":\"key\",\"key\":\"esc\"").flag("ok") && usbCall("\"cmd\":\"key\",\"key\":\"esc\"").flag("ok"));
+        EXPECT(current == &launcher);
+        usbCall("\"cmd\":\"screen.mirror\",\"on\":false");
+        EXPECT(!usb::mirroring());
+        // The same over WiFi: the screen goes to the web buffer, not the USB port
+        Serial.tx.clear();
+        EXPECT(usb::handle("{\"id\":5,\"cmd\":\"screen.mirror\",\"on\":true}", true).find("\"ok\":true") != std::string::npos);
+        run(300);
+        std::string web = usb::webScreen();
+        EXPECT(usb::mirroring() && web.find("~R 0 0 240 135") != std::string::npos && Serial.tx.find("~") == std::string::npos);
+        EXPECT(usb::webScreen().empty());       // nothing new drawn since
+        usb::handle("{\"id\":6,\"cmd\":\"screen.mirror\",\"on\":false}", true);
+        EXPECT(!usb::mirroring());
+        key('/');                              // back where the script expects the launcher cursor
+        for (int i = 0; i < 20; i++) key(',');
+        for (int i = 0; i < 21; i++) key('/');
+    }
 
     openNext();                                // Settings
     for (int i = 0; i < 20; i++) key('.');

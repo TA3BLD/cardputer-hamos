@@ -1,6 +1,7 @@
 // "SD card" backed by the ./simsd directory.
 #pragma once
 #include <dirent.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <string>
 #include "Arduino.h"
@@ -45,6 +46,7 @@ struct SimSD {
     bool exists(const char* p) { struct stat st; return stat(host(p).c_str(), &st) == 0; }
     bool mkdir(const char* p) { return ::mkdir(host(p).c_str(), 0755) == 0; }
     bool remove(const char* p) { return ::remove(host(p).c_str()) == 0; }
+    bool rmdir(const char* p) { return ::rmdir(host(p).c_str()) == 0; }
     bool rename(const char* a, const char* b) { return ::rename(host(a).c_str(), host(b).c_str()) == 0; }
     File open(const char* p, const char* mode = "r") {
         File f;

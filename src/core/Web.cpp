@@ -2,13 +2,12 @@
 #include <Update.h>
 #include <WebServer.h>
 #include <WiFi.h>
-#include <ctime>
 #include "Config.h"
 #include "Log.h"
-#include "Mesh.h"
 #include "Net.h"
-#include "Station.h"
 #include "Storage.h"
+#include "Usb.h"
+#include "WebPage.h"
 
 namespace web {
 
@@ -16,7 +15,6 @@ namespace {
 
 WebServer server(80);
 bool started = false;
-bool restartWifi = false;   // apply new WiFi settings after the reply has gone out
 
 std::string esc(const std::string& s) {
     std::string out;
@@ -42,92 +40,49 @@ std::string page(const std::string& title, const std::string& body) {
            "<title>HamOS - " + title + "</title><style>body{font-family:sans-serif;max-width:40em;margin:1em auto;padding:0 1em}"
            "input{font-size:1em;padding:.3em;margin:.2em 0;box-sizing:border-box;max-width:100%}label{display:block;margin-top:.6em}"
            "nav a{margin-right:1em}.me{color:#070}.dim{color:#777}</style></head><body>"
-           "<nav><a href=/>Status</a><a href=/settings>Settings</a><a href=/log.adi>Download log</a>"
+           "<nav><a href=/>Control panel</a><a href=/log.adi>Download log</a>"
            "<a href=/update>Update</a></nav><h2>" + title + "</h2>" +
            body + "</body></html>";
 }
 
 void sendPage(const std::string& title, const std::string& body) { server.send(200, "text/html", page(title, body).c_str()); }
 
+// The control page (tools/pc/hamos.html, embedded by tools/pc/embed.py).
 void handleRoot() {
     if (!allowed()) return;
-    std::string b = "<p><b>" + esc(config::get("callsign", "(no callsign)")) + "</b> &middot; grid " + esc(station::grid()) +
-                    " &middot; " + std::to_string(logbook::total()) + " QSOs in the log</p>";
-    b += "<h3>Mesh</h3>";
-    if (!mesh::ready()) {
-        b += "<p class=dim>" + esc(mesh::status()) + "</p>";
-    } else {
-        mesh::Stats s = mesh::stats();
-        char line[96];
-        snprintf(line, sizeof(line), "%s on %.3f MHz, %d nodes heard", s.channel.c_str(), s.freqMhz, (int)mesh::nodes().size());
-        b += std::string("<p class=dim>") + esc(line) + "</p>";
-        for (const mesh::Message& m : mesh::messages()) {
-            char stamp[8] = "--:--";
-            if (m.utc) {
-                struct tm t;
-                gmtime_r(&m.utc, &t);
-                strftime(stamp, sizeof(stamp), "%H:%M", &t);
-            }
-            b += std::string("<div") + (m.mine ? " class=me" : "") + "><span class=dim>" + stamp + "</span> <b>" +
-                 esc(mesh::nodeName(m.from)) + "</b>: " + esc(m.text) + "</div>";
-        }
-        b += "<form method=post action=/send><input name=text maxlength=200 size=30 autofocus> <input type=submit value=Send></form>";
-    }
-    sendPage("Status", b);
+    server.sendHeader("Content-Encoding", "gzip");
+    server.sendHeader("Cache-Control", "no-cache");
+    server.send_P(200, "text/html; charset=utf-8", (const char*)kPageGz, kPageGzLen);
 }
 
-void handleSend() {
+// Only the page this device served may use the API: a page from another site
+// open in the same browser must not reach it (the browser sends Origin).
+bool sameOrigin() {
+    std::string o = server.header("Origin").c_str(), host = server.hostHeader().c_str();
+    if (o.empty()) return true;
+    size_t p = o.find("://");
+    if (p != std::string::npos) o = o.substr(p + 3);
+    return o == host;
+}
+
+// The same requests as over USB (see Usb.h), one JSON object per POST.
+void handleApi() {
     if (!allowed()) return;
-    std::string error;
-    if (!mesh::sendText(server.arg("text").c_str(), error)) {
-        sendPage("Not sent", "<p>" + esc(error) + "</p><p><a href=/>Back</a></p>");
+    if (!sameOrigin()) {
+        server.send(403, "text/plain", "Forbidden");
         return;
     }
-    server.sendHeader("Location", "/");
-    server.send(303, "text/plain", "");
+    std::string reply = usb::handle(server.arg("plain").c_str(), true);
+    if (reply.empty()) reply = "{\"ok\":false,\"error\":\"no reply\"}";
+    server.sendHeader("Cache-Control", "no-store");
+    server.send(200, "application/json", reply.c_str());
 }
 
-struct WebField {
-    const char* key;
-    const char* label;
-};
-const WebField kFields[] = {
-    {"callsign", "Callsign"}, {"grid", "Grid locator"}, {"utc_offset", "UTC offset (hours)"},
-    {"mesh_name", "Mesh long name"}, {"mesh_short", "Mesh short name (4)"}, {"mesh_region", "Mesh region (EU_868, EU_433, US)"},
-    {"mesh_preset", "Mesh preset"}, {"mesh_channel", "Mesh channel name"}, {"mesh_pos", "Share position (0/1)"},
-    {"dx_host", "DX cluster host"}, {"dx_port", "DX cluster port"}, {"cw_wpm", "CW speed (WPM)"},
-};
-
-void handleSettings() {
+// Screen drawing steps since the last call, while the page mirrors the screen.
+void handleScreen() {
     if (!allowed()) return;
-    std::string b = "<form method=post action=/settings>";
-    for (const WebField& f : kFields)
-        b += std::string("<label>") + f.label + "<br><input name=" + f.key + " value=\"" + esc(config::get(f.key)) + "\"></label>";
-    b += "<label>WiFi name<br><input name=wifi_ssid value=\"" + esc(config::get("wifi_ssid")) + "\"></label>";
-    b += "<label>WiFi password (leave empty to keep)<br><input name=wifi_pass type=password></label>";
-    b += "<p><input type=submit value=Save></p><p class=dim>Empty fields use the built-in default.</p></form>";
-    sendPage("Settings", b);
-}
-
-void handleSettingsSave() {
-    if (!allowed()) return;
-    for (const WebField& f : kFields) {
-        if (!server.hasArg(f.key)) continue;
-        std::string v = server.arg(f.key).c_str();
-        if (v.empty()) config::erase(f.key);
-        else config::set(f.key, v);
-    }
-    std::string ssid = server.arg("wifi_ssid").c_str(), pass = server.arg("wifi_pass").c_str();
-    if (ssid != config::get("wifi_ssid") || !pass.empty()) {
-        if (ssid.empty()) config::erase("wifi_ssid");
-        else config::set("wifi_ssid", ssid);
-        if (!pass.empty()) config::set("wifi_pass", pass);
-        restartWifi = true;
-    }
-    bool saved = config::save();
-    mesh::begin();
-    sendPage("Settings", saved ? "<p>Saved.</p><p><a href=/>Back</a></p>"
-                               : "<p>Applied, but there is no SD card: lost at power-off.</p><p><a href=/>Back</a></p>");
+    server.sendHeader("Cache-Control", "no-store");
+    server.send(200, "text/plain", usb::webScreen().c_str());
 }
 
 void handleLog() {
@@ -205,10 +160,11 @@ void handleUpdateDone() {
 void tick() {
     if (!started) {
         if (config::get("web_on", "0") != "1" || !net::connected()) return;
+        static const char* headers[] = {"Origin"};
+        server.collectHeaders(headers, 1);
         server.on("/", HTTP_GET, handleRoot);
-        server.on("/send", HTTP_POST, handleSend);
-        server.on("/settings", HTTP_GET, handleSettings);
-        server.on("/settings", HTTP_POST, handleSettingsSave);
+        server.on("/api", HTTP_POST, handleApi);
+        server.on("/screen", HTTP_GET, handleScreen);
         server.on("/log.adi", HTTP_GET, handleLog);
         server.on("/update", HTTP_GET, handleUpdatePage);
         server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
@@ -216,11 +172,6 @@ void tick() {
         started = true;
     }
     server.handleClient();
-    if (restartWifi) {
-        restartWifi = false;
-        delay(200);         // let the reply leave before the connection drops
-        net::begin();
-    }
 }
 
 bool running() { return started && net::connected(); }

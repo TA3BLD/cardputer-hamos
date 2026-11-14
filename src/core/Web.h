@@ -1,6 +1,7 @@
 // Optional web interface on the local WiFi network (off by default; switch it
-// on with "Web UI" in Settings). Download the log, read and send mesh
-// messages and edit settings from a phone or PC browser.
+// on with "Web UI" in Settings). Serves the same control panel as the PC
+// program (tools/pc/hamos.html): live screen, keyboard, log, mesh, APRS,
+// files and settings from a phone or PC browser.
 // Set a "Web UI password" if other people share the network (user: hamos).
 #pragma once
 #include <string>

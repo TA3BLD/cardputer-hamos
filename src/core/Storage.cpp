@@ -42,6 +42,29 @@ std::vector<std::string> listFiles(const char* folder) {
     return names;
 }
 
+std::vector<Entry> listDir(const char* folder) {
+    std::vector<Entry> out;
+    if (!isReady) return out;
+    File dir = SD.open(folder);
+    if (!dir || !dir.isDirectory()) return out;
+    for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
+        std::string name = f.name();
+        size_t slash = name.rfind('/');
+        if (slash != std::string::npos) name = name.substr(slash + 1);
+        out.push_back({name, f.isDirectory(), f.isDirectory() ? 0u : (uint32_t)f.size()});
+        f.close();
+    }
+    dir.close();
+    std::sort(out.begin(), out.end(), [](const Entry& a, const Entry& b) {
+        if (a.folder != b.folder) return a.folder;
+        return a.name < b.name;
+    });
+    return out;
+}
+
+bool makeDir(const char* path) { return isReady && SD.mkdir(path); }
+bool removeDir(const char* path) { return isReady && SD.rmdir(path); }
+
 size_t readAt(const char* path, uint32_t offset, void* buffer, size_t len) {
     if (!isReady) return 0;
     File f = SD.open(path);
