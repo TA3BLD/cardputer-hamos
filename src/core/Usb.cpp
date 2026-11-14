@@ -1,4 +1,5 @@
 #include "Usb.h"
+#include "Version.h"
 #include <Arduino.h>
 #include <M5Cardputer.h>
 #include <sys/time.h>
@@ -24,7 +25,7 @@ namespace usb {
 
 namespace {
 
-constexpr const char* kVersion = "0.7";
+constexpr const char* kVersion = HAMOS_VERSION;
 constexpr size_t kMaxLine = 12000;              // longest request (a file piece in base64)
 constexpr size_t kMaxRead = 3072;               // bytes of a file per request
 

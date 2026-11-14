@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HamOS Yükleyici</title>
+<script type="module" src="https://unpkg.com/esp-web-tools@10.0.1/dist/web/install-button.js?module"></script>
+<style>
+  :root { --bg: #0f1420; --card: #182030; --text: #e6e9ef; --dim: #9aa3b2; --accent: #2f9e5b; }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #f4f6f9; --card: #fff; --text: #1b2230; --dim: #5d6675; } }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 40rem; margin: 0 auto; padding: 24px 16px; }
+  .card { background: var(--card); border-radius: 12px; padding: 16px 20px; margin: 16px 0; }
+  .dim { color: var(--dim); }
+  ol { padding-left: 1.2rem; }
+  esp-web-install-button button[slot="activate"] { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 12px 22px; font-size: 1.05rem; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <h1>📻 HamOS Yükleyici</h1>
+  <p class="dim">M5Stack Cardputer / Cardputer ADV için amatör telsiz yazılımı. Kurulum tarayıcıdan yapılır; başka program gerekmez.</p>
+
+  <div class="card">
+    <ol>
+      <li>Chrome veya Edge ile açın (bilgisayarda).</li>
+      <li>Cardputer'ı USB-C kablosuyla takın.</li>
+      <li>Aşağıdaki düğmeye basıp listeden portu seçin.</li>
+      <li>Bitince cihaz yeniden başlar.</li>
+    </ol>
+    <esp-web-install-button manifest="manifest.json">
+      <button slot="activate">HamOS'u yükle</button>
+      <span slot="unsupported">Bu tarayıcı USB'ye erişemiyor. Bilgisayarda Chrome veya Edge kullanın.</span>
+      <span slot="not-allowed">Sayfa https üzerinden açılmalı.</span>
+    </esp-web-install-button>
+  </div>
+
+  <div class="card">
+    <h3>Port görünmüyorsa</h3>
+    <p class="dim">Cardputer kapalıyken <b>G0</b> tuşunu basılı tutun, kabloyu takın, tuşu bırakın. Sonra tekrar deneyin. Yükleme bitince cihazı yan taraftaki düğmeyle yeniden başlatın.</p>
+    <h3>Ayarlar ve log</h3>
+    <p class="dim">Ayarlar, log ve resimler SD kartta durur; yükleme bunlara dokunmaz. "Cihazı sil" seçeneği yalnızca cihazın kendi belleğini siler.</p>
+    <h3>SD kart</h3>
+    <p class="dim">Haritalar, bayraklar ve rehber sayfaları için depodaki <code>sdcard</code> klasörünün içeriğini kartın köküne kopyalayın.</p>
+  </div>
+</main>
+</body>
+</html>
