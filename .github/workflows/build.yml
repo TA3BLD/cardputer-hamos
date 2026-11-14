@@ -68,7 +68,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libssl-dev python3-pil
       - name: Unit tests
         run: |
-          for t in test_libs test_maidenhead test_radio test_modem test_sat test_ft8qso test_psk31 test_json; do
+          for t in test_libs test_maidenhead test_radio test_modem test_sat test_ft8qso test_psk31 test_json test_web; do
             g++ -std=c++17 -O1 -I src test/host/$t.cpp -lcrypto -o test/host/t.out && test/host/t.out > /dev/null || exit 1
             echo "$t passed"
           done

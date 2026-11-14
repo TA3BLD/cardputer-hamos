@@ -176,7 +176,7 @@ Flags: public domain (npm `svg-country-flags`, from Wikipedia). Map outlines: Na
 Logic that does not need hardware goes in `src/lib/` and gets a test in `test/host/`:
 
 ```bash
-for t in test_libs test_maidenhead test_radio test_modem test_sat test_ft8qso test_psk31 test_json; do
+for t in test_libs test_maidenhead test_radio test_modem test_sat test_ft8qso test_psk31 test_json test_web; do
   g++ -std=c++17 -O1 -I src test/host/$t.cpp -lcrypto -o test/host/t.out && test/host/t.out
 done
 g++ -std=c++17 -I src test/host/test_map.cpp -o test/host/t.out && test/host/t.out sdcard/HamOS/map

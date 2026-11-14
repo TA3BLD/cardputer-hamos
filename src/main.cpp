@@ -25,17 +25,20 @@
 #include "apps/SettingsApp.h"
 #include "apps/SolarApp.h"
 #include "apps/SstvApp.h"
+#include "apps/UpdateApp.h"
 #include "core/AprsIs.h"
 #include "core/Audio.h"
 #include "core/Cap.h"
 #include "core/Config.h"
 #include "core/Gps.h"
+#include "core/Lang.h"
 #include "core/LoraAprs.h"
 #include "core/Mesh.h"
 #include "core/Net.h"
 #include "core/Rig.h"
 #include "core/Storage.h"
 #include "core/Ui.h"
+#include "core/Updater.h"
 #include "core/Usb.h"
 #include "core/Web.h"
 #include "core/Wsjtx.h"
@@ -63,10 +66,11 @@ static ReferenceApp referenceApp;
 static GuideApp guideApp;
 static CountryApp countryApp;
 static SettingsApp settingsApp;
+static UpdateApp updateApp;
 static const std::vector<App*> apps = {&logbookApp, &meshApp,     &aprsApp,    &mapApp,     &ft8App,     &dxClusterApp,
                                        &wsjtxApp,   &solarApp,    &satApp,     &gpsApp,     &digiApp,    &sstvApp,
                                        &pskApp,     &locatorApp,  &repeaterApp, &calcApp,   &morseApp,   &clockApp,
-                                       &referenceApp, &guideApp,  &countryApp, &settingsApp};
+                                       &referenceApp, &guideApp,  &countryApp, &settingsApp, &updateApp};
 // -----------------------------------------------------------------------------
 
 static Launcher launcher(apps);
@@ -198,6 +202,7 @@ static void pollKeyboard() {
 }
 
 void setup() {
+    updater::bootGuard();   // may switch back to the previous firmware after failed starts
     auto cfg = M5.config();
     M5Cardputer.begin(cfg, true);
     cap::begin();           // before the SD card: parks the radio on the shared SPI bus
@@ -233,6 +238,7 @@ void loop() {
     loraaprs::tick();
     web::tick();
     usb::tick();
+    updater::tick(current == &launcher);
     aprsis::tick();
     rig::tick();
     wsjtxlink::tick();
@@ -257,6 +263,16 @@ void loop() {
         ui::setNotice("");
         lastStatusMs = 0;
     }
+
+    // A new version on GitHub: say so once; installing is up to the user (Update app).
+    static bool updateAnnounced = false;
+    if (!updateAnnounced && updater::status().state == updater::State::Available) {
+        updateAnnounced = true;
+        ui::setNotice(std::string(T("Update available")) + ": " + updater::status().latest.version);
+        lastStatusMs = 0;
+        if (current == &launcher) launcher.dirty = true;
+    }
+    if (updateAnnounced && current == &updateApp && idNoticeMs == 0) ui::setNotice("");
 
     int dimAfter = atoi(config::get("dim_after", "60").c_str());
     if (dimAfter > 0 && !dimmed && now - lastKeyMs > (uint32_t)dimAfter * 1000) {

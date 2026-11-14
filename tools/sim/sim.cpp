@@ -18,6 +18,10 @@
 #include "lib/Meshtastic.h"
 #include "lib/Wsjtx.h"
 #include "mbedtls/aes.h"
+#include "mbedtls/sha256.h"
+#include <Preferences.h>
+#include <esp_ota_ops.h>
+#include <Update.h>
 
 uint32_t sim_ms = 1000;
 static long long sim_epoch_ms = (long long)time(nullptr) / 15 * 15000;     // a period boundary
@@ -778,7 +782,7 @@ int main() {
     {
         back();                                // to the launcher
         json::Object r = usbCall("\"cmd\":\"hello\"");
-        EXPECT(r.flag("ok") && has(r, "\"callsign\":\"TA3BLD\"") && has(r, "\"apps\":[\"Logbook\",\"Mesh\"") && has(r, "\"Settings\"]"));
+        EXPECT(r.flag("ok") && has(r, "\"callsign\":\"TA3BLD\"") && has(r, "\"apps\":[\"Logbook\",\"Mesh\"") && has(r, "\"Settings\",\"Update\"]"));
         EXPECT(!usbCall("\"cmd\":\"nonsense\"").flag("ok") && !usbCall("\"cmd\":\"files.read\",\"path\":\"../x\"").flag("ok"));
         // Settings
         r = usbCall("\"cmd\":\"config.list\"");
@@ -850,6 +854,62 @@ int main() {
     openNext();                                // Settings
     for (int i = 0; i < 20; i++) key('.');
     shot("settings");
+    back();
+
+    // ---- Update: a new release on GitHub, installed only after Y, Y ----
+    {
+        std::string fw(200000, '\0');
+        for (size_t i = 0; i < fw.size(); i++) fw[i] = (char)(i * 7 + 3);
+        unsigned char sum[32];
+        mbedtls_sha256_context c;
+        mbedtls_sha256_starts(&c, 0);
+        mbedtls_sha256_update(&c, (const unsigned char*)fw.data(), fw.size());
+        mbedtls_sha256_finish(&c, sum);
+        char hex[65];
+        for (int i = 0; i < 32; i++) snprintf(hex + i * 2, 3, "%02x", sum[i]);
+        std::string rel = std::string(R"({"tag_name":"v9.1.0","name":"HamOS 9.1","body":"## What's new\r\n* POTA and SOTA spots\r\n* Emergency mode\r\n* Turkish menus\r\n\r\n**Full Changelog**: v0.8.0...v9.1.0",)") +
+                          R"("assets":[{"url":"https://api.github.com/repos/TA3BLD/cardputer-hamos/releases/assets/7","name":"firmware.bin","size":)" +
+                          std::to_string(fw.size()) + R"(,"digest":"sha256:)" + hex +
+                          R"(","browser_download_url":"https://github.com/TA3BLD/cardputer-hamos/releases/download/v9.1.0/firmware.bin"}]})";
+        sim_http["api.github.com/repos/TA3BLD/cardputer-hamos/releases/latest"] = rel;
+        sim_http["releases/download/v9.1.0/firmware.bin"] = "REDIRECT https://release-assets.githubusercontent.com/fw?sig=1";
+        sim_http["release-assets.githubusercontent.com/fw"] = fw;
+
+        openNext();                            // Update
+        EXPECT(std::string(current->name()) == "Update");
+        enter();                               // check now
+        EXPECT(updater::status().state == updater::State::Available && updater::status().latest.version == "9.1.0");
+        shot("update-available");
+        key('y');
+        shot("update-confirm");
+        EXPECT(!Update.started);               // nothing happens before the second Y
+        key('n');
+        EXPECT(updater::status().state == updater::State::Available && !Update.started);
+        key('y'); key('y');
+        EXPECT(updater::status().state == updater::State::Installed && Update.finished && Update.data == fw);
+        EXPECT(sim_nvs["hamos_upd"]["watch"] == "1");
+        shot("update-installed");
+
+        // A download that does not match the published checksum is thrown away
+        fw[1000] ^= 1;
+        sim_http["release-assets.githubusercontent.com/fw"] = fw;
+        updater::check();
+        Update.finished = false;
+        key('y'); key('y');
+        EXPECT(updater::status().state == updater::State::Failed && Update.aborted && !Update.finished);
+
+        // The new version fails to start three times: the old one comes back
+        sim_nvs["hamos_upd"]["watch"] = "1";
+        sim_nvs["hamos_upd"]["starts"] = "0";
+        updater::bootGuard();
+        updater::bootGuard();
+        EXPECT(sim_boot_slot == 0);
+        updater::bootGuard();
+        EXPECT(sim_boot_slot == 1 && sim_nvs["hamos_upd"]["undone"] == HAMOS_VERSION);
+        updater::bootGuard();                  // started again, now as the old version
+        EXPECT(updater::rolledBackFrom() == HAMOS_VERSION);
+        back();
+    }
 
     if (failures) fprintf(stderr, "%d simulator checks FAILED\n", failures);
     else fprintf(stderr, "all simulator checks passed\n");

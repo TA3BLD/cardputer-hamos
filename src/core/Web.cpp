@@ -6,6 +6,7 @@
 #include "Log.h"
 #include "Net.h"
 #include "Storage.h"
+#include "Updater.h"
 #include "Usb.h"
 #include "WebPage.h"
 
@@ -150,6 +151,7 @@ void handleUpdateDone() {
         sendPage("Firmware update", "<p>Update failed: " + esc(updateError) + ". The old firmware is still installed.</p>");
         return;
     }
+    updater::afterManualUpdate();       // goes back to this version if the new one fails to start
     sendPage("Firmware update", "<p>Installed. HamOS is restarting...</p>");
     delay(500);
     ESP.restart();

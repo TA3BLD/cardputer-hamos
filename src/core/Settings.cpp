@@ -1,5 +1,6 @@
 #include "Settings.h"
 #include "AprsIs.h"
+#include "Lang.h"
 #include "LoraAprs.h"
 #include "Mesh.h"
 #include "Net.h"
@@ -14,6 +15,7 @@ void apply(int what) {
     if (what & APRS) aprsis::begin();
     if (what & RIG) rig::begin();
     if (what & FT8) wsjtxlink::begin();
+    if (what & LANG) lang::reload();
 }
 
 }  // namespace settings

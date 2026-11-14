@@ -32,6 +32,23 @@ struct String {
     const char* c_str() const { return s.c_str(); }
 };
 
+// Arduino's Print / Stream, as far as HamOS derives from them.
+struct Print {
+    virtual ~Print() {}
+    virtual size_t write(uint8_t c) = 0;
+    virtual size_t write(const uint8_t* data, size_t n) {
+        size_t done = 0;
+        while (done < n && write(data[done])) done++;
+        return done;
+    }
+    virtual void flush() {}
+};
+struct Stream : Print {
+    virtual int available() = 0;
+    virtual int read() = 0;
+    virtual int peek() = 0;
+};
+
 struct SimEsp {
     uint64_t getEfuseMac() { return 0x78563412AABBULL; }    // node !12345678
     void restart() {}

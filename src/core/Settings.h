@@ -6,7 +6,7 @@
 
 namespace settings {
 
-enum { NONE = 0, WIFI = 1, MESH = 2, APRS = 4, RIG = 8, FT8 = 16 };    // what restarts when the value changes
+enum { NONE = 0, WIFI = 1, MESH = 2, APRS = 4, RIG = 8, FT8 = 16, LANG = 32 };    // what restarts when the value changes
 
 struct Field {
     const char* key;
@@ -63,6 +63,10 @@ inline const std::vector<Field>& fields() {
             {"koch_level", "Koch level", "2", 2, false, false, settings::NONE},
             {"brightness", "Brightness 10-255", "160", 3, false, false, settings::NONE},
             {"dim_after", "Dim after s (0=no)", "60", 4, false, false, settings::NONE},
+            {"lang", "Language tr/en", "en", 2, false, false, settings::LANG},
+            {"update_check", "Update check 0/1", "1", 1, false, false, settings::NONE},
+            {"update_repo", "Update repository", "TA3BLD/cardputer-hamos", 60, false, false, settings::NONE},
+            {"update_token", "Update token", "", 100, false, true, settings::NONE},
     };
     return f;
 }
