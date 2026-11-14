@@ -18,6 +18,8 @@ size_t total();                                 // contacts in the file
 bool add(const adif::Qso& q);                   // false if it could not be written to the SD card
 bool remove(size_t indexInRecent);              // deletes one contact from the file
 bool workedEntity(const dxcc::Entity* e);       // any contact with this country, whole log
+// Every contact in the file, oldest first (reads the SD card; not for every frame).
+void forEach(void (*fn)(const adif::Qso& q, void* user), void* user);
 // Earlier contacts with a callsign among the recent ones; `dupes` = same band and mode.
 int worked(const std::string& call, const std::string& freq, const std::string& mode, int& dupes);
 

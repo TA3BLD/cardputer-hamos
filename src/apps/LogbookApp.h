@@ -3,7 +3,10 @@
 #include <ctime>
 #include <string>
 #include <vector>
+#include <memory>
 #include "core/App.h"
+#include "core/Callbook.h"
+#include "core/Lang.h"
 #include "core/Flags.h"
 #include "core/Log.h"
 #include "core/Net.h"
@@ -41,6 +44,7 @@ public:
             if (k.enter && field_ == FIELDS - 1) save();
             else if (k.enter || k.tab) {
                 if (field_ == MODE) defaultRst();
+                if (field_ == CALL) lookUp();
                 field_ = (field_ + 1) % FIELDS;
             }
             else if (!in_[field_].handle(k)) return;
@@ -145,6 +149,12 @@ private:
             q.comment = in_[NOTE].value;
         }
         q.potaRef = config::get("pota_ref");
+        q.sotaRef = config::get("sota_ref");
+        if (found_ && found_->call == q.call) {
+            q.name = found_->name;
+            q.qth = found_->qth;
+            q.grid = found_->grid;
+        }
         if (net::timeValid()) {
             time_t now = time(nullptr);
             struct tm t;
@@ -168,9 +178,19 @@ private:
             ui::formRow(i, (i == NOTE && contest()) ? "Nr rcvd" : labels[i], in_[i].value, i == field_);
         if (contest()) ui::text(150, ui::BODY_Y + 2 + SENT * ui::ROW_H + 2, "send nr " + nextSerial(), ui::C_OK);
 
-        // Line 1: country, distance and heading from the callsign prefix.
+        // Line 1: callbook name and town, else country, distance and heading from the prefix.
         const dxcc::Entity* e = dxcc::lookup(in_[CALL].value);
-        if (e) {
+        double cbLat, cbLon, myLat, myLon;
+        if (found_ && found_->call == in_[CALL].value) {
+            std::string who = found_->name + (found_->qth.empty() ? "" : ", " + found_->qth);
+            if (maidenhead::toLatLon(found_->grid, cbLat, cbLon) && station::position(myLat, myLon)) {
+                char buf[24];
+                snprintf(buf, sizeof(buf), " %.0fkm", maidenhead::distanceKm(myLat, myLon, cbLat, cbLon));
+                who += buf;
+            }
+            if (e) flags::drawSmall(e->iso, 6, ui::BODY_Y + 76);
+            ui::text(26, ui::BODY_Y + 77, ui::displayable(who).substr(0, 60), e && !logbook::workedEntity(e) ? ui::C_SEL : ui::C_TEXT);
+        } else if (e) {
             std::string where = e->name;
             double lat, lon;
             if (station::position(lat, lon)) {
@@ -228,6 +248,22 @@ private:
 
     bool editing_ = false, confirmDelete_ = false;
     int selected_ = 0, scroll_ = 0, field_ = 0;
+    std::unique_ptr<callbook::Info> found_;     // callbook answer for the call being entered
+
+    // After the callsign is typed: name, town and locator from HamQTH / QRZ.
+    void lookUp() {
+        if (!callbook::configured() || !net::connected() || in_[CALL].value.size() < 3) return;
+        if (found_ && found_->call == in_[CALL].value) return;
+        ui::footer(T("Looking up the callsign..."));
+        callbook::Info info;
+        std::string err;
+        if (callbook::lookup(in_[CALL].value, info, err)) {
+            info.call = in_[CALL].value;
+            found_.reset(new callbook::Info(info));
+        } else {
+            found_.reset();
+        }
+    }
     ui::TextInput in_[FIELDS];
     std::string status_;
 };

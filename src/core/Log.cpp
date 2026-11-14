@@ -75,6 +75,20 @@ void load() {
 }
 
 const std::vector<adif::Qso>& recent() { return recentQsos; }
+
+void forEach(void (*fn)(const adif::Qso& q, void* user), void* user) {
+    struct Ctx {
+        void (*fn)(const adif::Qso&, void*);
+        void* user;
+    } ctx{fn, user};
+    Splitter s;
+    s.user = &ctx;
+    s.onPiece = [](const std::string& piece, void* u) {
+        Ctx* c = (Ctx*)u;
+        for (const adif::Qso& q : adif::parse(piece)) c->fn(q, c->user);
+    };
+    storage::readChunks(kPath, Splitter::feed, &s);
+}
 size_t total() { return totalCount; }
 bool workedEntity(const dxcc::Entity* e) { return e && entities.count(e) > 0; }
 

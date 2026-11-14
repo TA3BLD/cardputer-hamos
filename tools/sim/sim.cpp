@@ -6,6 +6,10 @@
 #include <RadioLib.h>
 #include <WiFiUdp.h>
 #include "core/Log.h"
+#include "core/Callbook.h"
+#include "core/LogUpload.h"
+#include "core/Pota.h"
+#include "core/PskReporter.h"
 #include "core/LoraAprs.h"
 #include "lib/Aprs.h"
 #include "lib/Ft8.h"
@@ -484,6 +488,7 @@ int main() {
     back();
 
     // ---- FT8: decode three stations, answer the CQ from DX1ABC, complete and log the contact ----
+    config::set("psk_report", "1");             // decodes go to PSK Reporter
     openNext();                                // FT8 (fourth tile)
     {
         sim_speaker.clear();
@@ -531,6 +536,151 @@ int main() {
     openNext();                                // DX Cluster
     shot("dx-cluster");
     EXPECT(sim_net_sent[kClusterHost] == "TA3BLD\r\n");
+    back();
+
+    // ---- PSK Reporter: the FT8 decodes above went out as one IPFIX datagram ----
+    {
+        bool found = false;
+        for (auto& d : sim_udp_sent)
+            if (d.first == "report.pskreporter.info:4739" && d.second.find("TA3BLD") != std::string::npos &&
+                d.second.find("KM38") != std::string::npos && d.second[1] == 10)
+                found = true;
+        EXPECT(found || pskr::queued() > 0);
+        size_t before = sim_udp_sent.size();
+        pskr::add("DL1ABC", "JO31", "FT8", 14075123, -12);
+        pskr::add("DL1ABC", "JO31", "FT8", 14075300, -10);   // same station, same band: once only
+        EXPECT(pskr::queued() <= 2);
+        (void)before;
+    }
+
+    // ---- POTA / SOTA ----
+    auto isoAgo = [](int minutes) {
+        time_t t = (time_t)(sim_utc_ms() / 1000) - minutes * 60;
+        struct tm g;
+        gmtime_r(&t, &g);
+        char b[24];
+        strftime(b, sizeof(b), "%Y-%m-%dT%H:%M:%S", &g);
+        return std::string(b);
+    };
+    sim_http["api.pota.app/spot/activator"] = std::string(R"([
+      {"spotId":1,"activator":"K4SWL","frequency":"14062.0","mode":"CW","reference":"US-3971","parkName":null,"spotTime":")" + isoAgo(14) + R"(",
+       "spotter":"W1AW","comments":"QRP 5W","source":"RBN","name":"Pisgah National Forest","locationDesc":"US-NC","latitude":35.3,"longitude":-82.7},
+      {"spotId":2,"activator":"TA1ABC","frequency":"7135","mode":"SSB","reference":"TA-0003","spotTime":")" + isoAgo(3) + R"(",
+       "spotter":"TA1ABC","comments":"QRV","name":"Kuşcenneti Milli Parkı","locationDesc":"TR-10","latitude":40.2,"longitude":27.97}])");
+    sim_http["api2.sota.org.uk/api/spots"] = std::string(R"([{"id":5,"timeStamp":")") + isoAgo(22) + R"(","comments":"qrt 12z","callsign":"OE5JFE",
+       "associationCode":"OE","summitCode":"OO-001","activatorCallsign":"OE5JFE/P","summitDetails":"Hoher Dachstein, 2995m, 10 Points",
+       "frequency":"14.285","mode":"ssb"}])";
+    sim_http["pota.app/all_parks_ext.csv"] = "\"reference\",\"name\",\"active\",\"entityId\",\"locationDesc\",\"latitude\",\"longitude\",\"grid\"\n"
+        "\"TA-0001\",\"Spil Dağı Milli Parkı\",\"1\",\"390\",\"TR-45\",\"38.555\",\"27.43\",\"KM38lm\"\n"
+        "\"TA-0002\",\"Dilek Yarımadası, Büyük Menderes\",\"1\",\"390\",\"TR-09\",\"37.68\",\"27.15\",\"KM37\"\n"
+        "\"TA-0099\",\"Old park\",\"0\",\"390\",\"TR-35\",\"38.4\",\"27.1\",\"KM38\"\n"
+        "\"US-0001\",\"Acadia National Park\",\"1\",\"291\",\"US-ME\",\"44.31\",\"-68.2034\",\"FN54vh\"\n";
+    sim_http["storage.sota.org.uk/summitslist.csv"] = "SOTA Summits List (Date=13/11/2026)\n"
+        "SummitCode,AssociationName,RegionName,SummitName,AltM,AltFt,GridRef1,GridRef2,Longitude,Latitude,Points,BonusPoints,ValidFrom,ValidTo,ActivationCount,ActivationDate,ActivationCall\n"
+        "TA/AE-001,Turkey,Aegean,Bozdağ,2159,7083,28.07,38.33,28.0700,38.3300,10,3,01/01/2020,31/12/2099,2,01/05/2025,TA3BLD\n"
+        "TA/AE-050,Turkey,Aegean,Spil Dağı,1513,4964,27.43,38.56,27.4300,38.5600,8,3,01/01/2020,31/12/2099,0,,\n"
+        "OE/OO-001,Austria,Oberoesterreich,Hoher Dachstein,2995,9826,13.6,47.47,13.6000,47.4700,10,3,01/01/2000,31/12/2099,40,,\n";
+    sim_http["api.pota.app/spot"] = "{}";
+    openNext();                                // POTA/SOTA
+    EXPECT(std::string(current->name()) == "POTA/SOTA");
+    run(300);
+    shot("pota-spots");
+    key('.'); enter();
+    shot("pota-spot");
+    back();
+    tab();                                     // SOTA spots
+    run(300);
+    shot("sota-spots");
+    tab();                                     // parks near me
+    key('d');
+    EXPECT(storage::exists("/HamOS/pota/parks.csv"));
+    {
+        std::string err;
+        auto parks = pota::nearby(pota::POTA, 10, err);
+        EXPECT(parks.size() == 2 && parks[0].ref == "TA-0001" && parks[1].ref == "TA-0002");   // retired and far away left out
+    }
+    shot("pota-parks");
+    key('s');                                  // activate the nearest park
+    EXPECT(config::get("pota_ref") == "TA-0001");
+    tab();                                     // summits near me
+    key('d');
+    {
+        std::string err;
+        auto summits = pota::nearby(pota::SOTA, 10, err);
+        EXPECT(summits.size() == 2 && summits[0].ref == "TA/AE-050");
+    }
+    shot("sota-summits");
+    tab();                                     // my activation
+    key('s');                                  // spot me
+    del(10); type("14244"); enter();
+    del(6); type("SSB"); enter();
+    type("CQ POTA"); enter();
+    {
+        const SimHttpRequest& last = sim_http_log.back();
+        EXPECT(last.method == "POST" && last.url == "https://api.pota.app/spot" && last.body.find("\"reference\":\"TA-0001\"") != std::string::npos &&
+               last.body.find("\"frequency\":\"14244.0\"") != std::string::npos && last.body.find("\"activator\":\"TA3BLD\"") != std::string::npos);
+    }
+    shot("pota-activation");
+    back();
+
+    // ---- PSK Reporter: who heard me ----
+    sim_http["retrieve.pskreporter.info/query"] = R"(<?xml version="1.0"?><receptionReports currentSeconds="1">
+      <activeReceiver callsign="X" locator="JO31" />
+      <receptionReport receiverCallsign="DL1ABC" receiverLocator="JO31le" senderCallsign="TA3BLD" senderLocator="KM38nk" frequency="14075512" flowStartSeconds="1794571000" mode="FT8" isSender="1" sNR="-14" />
+      <receptionReport receiverCallsign="JA1XYZ" receiverLocator="PM95" senderCallsign="TA3BLD" frequency="14075530" flowStartSeconds="1794571300" mode="FT8" sNR="-21" />
+      <receptionReport receiverCallsign="4X1AB" receiverLocator="KM72" senderCallsign="TA3BLD" frequency="7075500" flowStartSeconds="1794570000" mode="FT8" sNR="-3" />
+      </receptionReports>)";
+    openNext();                                // PSK Reporter
+    run(300);
+    EXPECT(std::string(current->name()) == "PSK Reporter");
+    shot("psk-reporter");
+    back();
+
+    // ---- Callbook ----
+    config::set("hamqth_user", "ta3bld");
+    config::set("hamqth_pass", "x");
+    sim_http["hamqth.com/xml.php?u="] = "<?xml version=\"1.0\"?><HamQTH version=\"2.8\"><session><session_id>09b0ae90050be03c452ad235a1f2915ad684393c</session_id></session></HamQTH>";
+    sim_http["hamqth.com/xml.php?id="] = "<?xml version=\"1.0\"?><HamQTH version=\"2.8\"><search><callsign>dl1abc</callsign><nick>Klaus</nick>"
+        "<qth>Bremen</qth><country>Germany</country><grid>jo43jb</grid></search></HamQTH>";
+    openNext();                                // Callbook
+    type("dl1abc"); enter();
+    run(300);
+    shot("callbook");
+    back(); back();
+
+    // Logbook form fills in the name from the callbook
+    {
+        callbook::Info info;
+        std::string err;
+        EXPECT(callbook::lookup("DL1ABC", info, err) && info.name == "Klaus" && info.grid == "JO43jb");
+    }
+
+    // ---- Log upload ----
+    config::set("qrz_logkey", "ABCD-1234");
+    config::set("eqsl_user", "TA3BLD");
+    config::set("eqsl_pass", "x");
+    sim_http["logbook.qrz.com/api"] = "RESULT=OK&LOGID=1234&COUNT=1";
+    sim_http["eqsl.cc/qslcard/importADIF"] = "<HTML><BODY>Result: 1 out of 1 records added<BR></BODY></HTML>";
+    openNext();                                // Log upload
+    run(300);
+    EXPECT(std::string(current->name()) == "Log upload");
+    size_t logged = logbook::total();
+    enter();                                   // eQSL: everything new
+    {
+        logupload::Counts c = logupload::count();
+        EXPECT(c.total == logged && c.waiting[logupload::EQSL] == 0 && c.waiting[logupload::QRZ] == logged);
+    }
+    key('.'); key('.');
+    enter();                                   // QRZ.com
+    EXPECT(logupload::count().waiting[logupload::QRZ] == 0);
+    EXPECT(sim_http_log.back().body.find("ACTION=INSERT") != std::string::npos && sim_http_log.back().body.find("KEY=ABCD-1234") != std::string::npos);
+    key('.'); key('a');                        // Cabrillo, whole log
+    {
+        std::string cbr;
+        EXPECT(storage::readFile(logupload::kCabrilloPath, cbr) && cbr.find("START-OF-LOG: 3.0") != std::string::npos &&
+               cbr.find("QSO: ") != std::string::npos && cbr.find("END-OF-LOG:") != std::string::npos);
+    }
+    shot("log-upload");
     back();
 
     // ---- FT8: what WSJT-X on the PC decodes, and a contact it logs ----

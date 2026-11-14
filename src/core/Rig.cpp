@@ -67,6 +67,31 @@ void tick() {
 }
 
 bool connected() { return isConnected && !freq.empty(); }
+
+// rigctld mode name for a logbook / spot mode.
+static const char* hamlibMode(const std::string& m, double mhz) {
+    if (m == "CW") return "CW";
+    if (m == "FM") return "FM";
+    if (m == "AM") return "AM";
+    if (m == "RTTY") return "RTTY";
+    if (m == "SSB" || m == "PHONE") return mhz < 10 ? "LSB" : "USB";
+    if (m.empty()) return "";
+    return "PKTUSB";                        // FT8, FT4, PSK31, DATA ...
+}
+
+bool tune(double mhz, const std::string& m) {
+    if (!isConnected || mhz <= 0) return false;
+    char cmd[64];
+    snprintf(cmd, sizeof(cmd), "F %.0f\n", mhz * 1e6);
+    client.print(cmd);
+    const char* hm = hamlibMode(m, mhz);
+    if (*hm) {
+        snprintf(cmd, sizeof(cmd), "M %s 0\n", hm);
+        client.print(cmd);
+    }
+    lastPollMs = 0;                         // read the new values back soon
+    return true;
+}
 std::string freqMhz() { return freq; }
 std::string mode() { return modeText; }
 

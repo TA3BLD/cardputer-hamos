@@ -11,4 +11,7 @@ void tick();
 bool connected();
 std::string freqMhz();      // "14.074", "" if unknown
 std::string mode();         // logbook style: SSB, CW, FM, AM, RTTY, DATA
+// Sets the radio to a frequency and (if not empty) a mode such as "SSB",
+// "CW", "FT8". False when no radio is connected.
+bool tune(double mhz, const std::string& mode);
 }

@@ -303,6 +303,7 @@ std::string logAdd(int id, const json::Object& r) {
     q.grid = r.str("grid");
     q.comment = r.str("comment");
     q.potaRef = config::get("pota_ref");
+    q.sotaRef = config::get("sota_ref");
     q.date = r.str("date");
     q.time = r.str("time");
     if (q.date.empty() && net::timeValid()) {

@@ -12,6 +12,8 @@ struct Qso {
     std::string potaRef;    // own park reference when activating (POTA), e.g. "TR-0001"
     std::string stx, srx;   // contest serial numbers sent / received
     std::string grid;       // the other station's locator
+    std::string name, qth;  // the other operator's name and town (from the callbook)
+    std::string sotaRef;    // own summit when activating (SOTA), e.g. "TA/AE-001"
 };
 
 // Amateur band name for a frequency in MHz, "" if outside the bands.
@@ -53,9 +55,10 @@ inline std::string toRecord(const Qso& q) {
     return field("CALL", q.call) + field("QSO_DATE", q.date) + field("TIME_ON", q.time) +
            field("FREQ", q.freq) + field("BAND", band(atof(q.freq.c_str()))) + field("MODE", q.mode) +
            field("RST_SENT", q.rstSent) + field("RST_RCVD", q.rstRcvd) + field("GRIDSQUARE", q.grid) +
-           field("COMMENT", q.comment) +
+           field("NAME", q.name) + field("QTH", q.qth) + field("COMMENT", q.comment) +
            field("STX", q.stx) + field("SRX", q.srx) +
-           (q.potaRef.empty() ? "" : field("MY_SIG", "POTA") + field("MY_SIG_INFO", q.potaRef)) + "<EOR>\n";
+           (q.potaRef.empty() ? "" : field("MY_SIG", "POTA") + field("MY_SIG_INFO", q.potaRef)) +
+           field("MY_SOTA_REF", q.sotaRef) + "<EOR>\n";
 }
 
 // Parses every record in an ADIF text. Unknown fields are ignored.
@@ -99,6 +102,9 @@ inline std::vector<Qso> parse(const std::string& text) {
         else if (name == "COMMENT") cur.comment = value;
         else if (name == "GRIDSQUARE") cur.grid = value;
         else if (name == "MY_SIG_INFO") cur.potaRef = value;
+        else if (name == "MY_SOTA_REF") cur.sotaRef = value;
+        else if (name == "NAME") cur.name = value;
+        else if (name == "QTH") cur.qth = value;
         else if (name == "STX") cur.stx = value;
         else if (name == "SRX") cur.srx = value;
     }

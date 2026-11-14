@@ -4,6 +4,7 @@
 
 #include "apps/AprsApp.h"
 #include "apps/CalcApp.h"
+#include "apps/CallbookApp.h"
 #include "apps/ClockApp.h"
 #include "apps/CountryApp.h"
 #include "apps/DigiApp.h"
@@ -15,10 +16,13 @@
 #include "apps/Launcher.h"
 #include "apps/LocatorApp.h"
 #include "apps/LogbookApp.h"
+#include "apps/LogSyncApp.h"
 #include "apps/MapApp.h"
 #include "apps/MeshApp.h"
 #include "apps/MorseApp.h"
 #include "apps/PskApp.h"
+#include "apps/PotaApp.h"
+#include "apps/PskrApp.h"
 #include "apps/ReferenceApp.h"
 #include "apps/RepeaterApp.h"
 #include "apps/SatApp.h"
@@ -35,6 +39,7 @@
 #include "core/LoraAprs.h"
 #include "core/Mesh.h"
 #include "core/Net.h"
+#include "core/PskReporter.h"
 #include "core/Rig.h"
 #include "core/Storage.h"
 #include "core/Ui.h"
@@ -46,6 +51,10 @@
 // ---- App registry: add new apps here ---------------------------------------
 static LogbookApp logbookApp;
 static MeshApp meshApp;
+static PotaApp potaApp;
+static PskrApp pskrApp;
+static CallbookApp callbookApp;
+static LogSyncApp logSyncApp;
 static AprsApp aprsApp;
 static MapApp mapApp;
 static DxClusterApp dxClusterApp;
@@ -68,6 +77,7 @@ static CountryApp countryApp;
 static SettingsApp settingsApp;
 static UpdateApp updateApp;
 static const std::vector<App*> apps = {&logbookApp, &meshApp,     &aprsApp,    &mapApp,     &ft8App,     &dxClusterApp,
+                                       &potaApp,    &pskrApp,     &callbookApp, &logSyncApp,
                                        &wsjtxApp,   &solarApp,    &satApp,     &gpsApp,     &digiApp,    &sstvApp,
                                        &pskApp,     &locatorApp,  &repeaterApp, &calcApp,   &morseApp,   &clockApp,
                                        &referenceApp, &guideApp,  &countryApp, &settingsApp, &updateApp};
@@ -239,6 +249,7 @@ void loop() {
     web::tick();
     usb::tick();
     updater::tick(current == &launcher);
+    pskr::tick();
     aprsis::tick();
     rig::tick();
     wsjtxlink::tick();

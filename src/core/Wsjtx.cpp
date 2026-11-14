@@ -51,6 +51,7 @@ static void handle(const wsjtx::Message& m) {
     } else if (m.type == wsjtx::LOGGED_ADIF) {
         for (adif::Qso q : adif::parse(m.adif)) {
             q.potaRef = config::get("pota_ref");
+            q.sotaRef = config::get("sota_ref");
             logbook::add(q);
             loggedCount++;
         }

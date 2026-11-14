@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/PskReporter.h"
 #include "core/Audio.h"
 #include "core/Config.h"
 #include "core/Flags.h"
@@ -280,6 +281,10 @@ private:
             } else if (w.size() >= 2) {
                 l.from = w[1];
             }
+            if (!l.from.empty()) {              // to PSK Reporter (when switched on)
+                std::string loc = !w.empty() && ft8::isGrid4(w.back()) && w.back() != "RR73" ? w.back() : "";
+                pskr::add(l.from, loc, "FT8", (uint32_t)(atof(dialMhz().c_str()) * 1e6 + d.freqHz), d.snr);
+            }
             const dxcc::Entity* e = dxcc::lookup(l.from);
             if (e) {
                 l.country = e->name;
@@ -330,6 +335,7 @@ private:
         q.rstSent = ft8::Qso::report(qso_.reportSent);
         q.rstRcvd = ft8::Qso::report(qso_.reportRcvd);
         q.potaRef = config::get("pota_ref");
+        q.sotaRef = config::get("sota_ref");
         time_t now = (time_t)(net::utcMillis() / 1000);
         struct tm tmv;
         gmtime_r(&now, &tmv);
