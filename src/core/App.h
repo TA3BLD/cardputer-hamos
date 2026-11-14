@@ -22,6 +22,8 @@ struct KeyEvent {
     // (Older versions of the keyboard library report Fn + ; as fn plus the character.)
     bool fnUp() const { return arrowUp || (fn && ch == ';'); }
     bool fnDown() const { return arrowDown || (fn && ch == '.'); }
+    bool fnLeft() const { return arrowLeft || (fn && ch == ','); }
+    bool fnRight() const { return arrowRight || (fn && ch == '/'); }
 };
 
 constexpr char KEY_BACK = '`';   // ` (or Fn+` = ESC): leave field / return to launcher

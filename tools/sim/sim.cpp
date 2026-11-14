@@ -12,6 +12,7 @@
 #include "lib/Ft8Decoder.h"
 #include "lib/Bmp.h"
 #include "lib/Sstv.h"
+#include "lib/Psk31.h"
 #include "lib/Meshtastic.h"
 #include "lib/Wsjtx.h"
 #include "mbedtls/aes.h"
@@ -653,6 +654,42 @@ int main() {
         check.feed(sim_speaker.data(), sim_speaker.size());
         fprintf(stderr, "sstv send: mode %s, %d lines, %d white pixels in the callsign rows, %zu samples\n", check.mode() ? check.mode()->name : "none", got.lines, got.white, sim_speaker.size());
         EXPECT(check.mode() == robot36 && got.lines == 240 && got.white > 100);
+        back();
+    }
+
+    // ---- PSK31: find a signal on the waterfall, read it, answer ----
+    openNext();
+    EXPECT(std::string(current->name()) == "PSK31");
+    {
+        psk31::Modulator other("CQ CQ CQ de TA1PSK TA1PSK pse k\nCQ CQ CQ de TA1PSK TA1PSK pse k\n", 1463.0, 8000, 9000);
+        std::vector<int16_t> audio;
+        int16_t buf[512];
+        for (size_t n; (n = other.read(buf, 512)) > 0;) audio.insert(audio.end(), buf, buf + n);
+        // The other station keeps sending while the cursor is moved to it.
+        for (int16_t v : audio) sim_mic.push_back((int16_t)(v + rand() % 1800 - 900));
+        Keys right; right.fn = true; right.right = true;
+        for (int i = 0; i < 45; i++) press(right);                          // cursor 1000 -> 1450 Hz
+        tab();                                                              // snap to the signal next to it
+        run(4000);
+        shot("psk31-receive");
+        fprintf(stderr, "psk31: snapped to %.1f Hz\n", pskApp.frequencyForTest());
+        EXPECT(std::fabs(pskApp.frequencyForTest() - 1463) < 12);           // close enough for the AFC
+        while (!sim_mic.empty()) run(10);
+        hear(std::vector<int16_t>(8000, 0), 1.0, 900);
+        fprintf(stderr, "psk31: AFC at %.1f Hz, received \"%s\"\n", pskApp.frequencyForTest(), pskApp.receivedForTest().c_str());
+        EXPECT(std::fabs(pskApp.frequencyForTest() - 1463) < 1.5);
+        EXPECT(pskApp.receivedForTest().find("de TA1PSK TA1PSK pse k") != std::string::npos);
+        type("TA1PSK de TA3BLD ur 599 Izmir");
+        shot("psk31-send");
+        sim_speaker.clear();
+        enter();
+        runUntilQuiet();
+        psk31::Demodulator check(8000);
+        check.setFrequency(pskApp.frequencyForTest());
+        std::vector<int16_t> tx = sim_speaker;
+        tx.resize(tx.size() + 8000, 0);
+        check.feed(tx.data(), tx.size());
+        EXPECT(check.text.find("TA1PSK de TA3BLD ur 599 Izmir") != std::string::npos);
         back();
     }
 

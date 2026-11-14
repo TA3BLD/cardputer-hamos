@@ -1,13 +1,19 @@
-DEBUG line p24 RX CQ DX1ABC PK04
-DEBUG line p24 RX CQ JA1ABC PM95
-DEBUG line p24 RX TA1ABC DL1XYZ -05
-DEBUG line p25 TX DX1ABC TA3BLD KM38
-DEBUG line p26 RX CQ JA1ABC PM95
-DEBUG line p26 RX TA3BLD DX1ABC -10
-DEBUG line p27 TX DX1ABC TA3BLD R-08
-DEBUG line p29 TX DX1ABC TA3BLD R-08
-DEBUG step 4 txEnabled 1 parity 1 period 29 status '' msg 'DX1ABC TA3BLD R-08' unanswered 2
-SIM CHECK FAILED line 405: sent.size() == 1 && sent[0] == "DX1ABC TA3BLD 73"
-SIM CHECK FAILED line 407: log.find("<CALL:6>DX1ABC") != std::string::npos && log.find("<MODE:3>FT8") != std::string::npos && log.find("<RST_RCVD:3>-10") != std::string::npos && log.find("<GRIDSQUARE:4>PK04") != std::string::npos
-SIM CHECK FAILED line 413: decodeSpeaker().empty()
-3 simulator checks FAILED
+sstv: received picture differs by 5.9 on average (0..255)
+sstv send: mode Robot 36, 240 lines, 337 white pixels in the callsign rows, 421265 samples
+psk31: snapped to 1462.6 Hz
+DEBUG psk t=0 hz=1462.66 left=119296
+DEBUG psk t=150 hz=1463.02 left=107264
+DEBUG psk t=300 hz=1462.98 left=95488
+DEBUG psk t=450 hz=1462.99 left=83456
+DEBUG psk t=600 hz=1463.00 left=71424
+DEBUG psk t=750 hz=1463.01 left=59392
+DEBUG psk t=900 hz=1463.03 left=47360
+DEBUG psk t=1050 hz=1463.00 left=35328
+DEBUG psk t=1200 hz=1462.97 left=23296
+DEBUG psk t=1350 hz=1463.01 left=11264
+psk31: AFC at 1470.8 Hz, received "Q de TA1PSK TA1PSK pse k
+CQ CQ CQ de TA1PSK TA1PSK pse k
+o
+"
+SIM CHECK FAILED line 678: std::fabs(pskApp.frequencyForTest() - 1463) < 1.5
+1 simulator checks FAILED
