@@ -233,6 +233,7 @@ private:
         addLine(text, ui::C_NOTICE, true);
         tx_.reset(new psk31::Modulator(text + " ", demod_->frequency(), kRate, 12000));
         audio::play([](int16_t* out, size_t max, void* self) { return ((PskApp*)self)->tx_->read(out, max); }, this, kRate);
+        audio::markTransmit();
     }
 
     std::unique_ptr<psk31::Demodulator> demod_;

@@ -326,6 +326,7 @@ private:
         audio::stopCapture();
         encoder_.reset(new sstv::Encoder(*txMode_, source, this, kRate));
         audio::play([](int16_t* out, size_t max, void* self) { return ((SstvApp*)self)->encoder_->read(out, max); }, this, kRate);
+        audio::markTransmit();
         status_.clear();
     }
 

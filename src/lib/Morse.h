@@ -30,6 +30,15 @@ inline const char* encode(char c) {
     }
 }
 
+// The character for a pattern of dots and dashes, 0 if none.
+inline char decode(const std::string& pattern) {
+    if (pattern.empty()) return 0;
+    static const char kChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,?/=+-";
+    for (const char* c = kChars; *c; c++)
+        if (pattern == encode(*c)) return *c;
+    return 0;
+}
+
 // Length of one dot in milliseconds (PARIS standard).
 inline int dotMs(int wpm) { return 1200 / (wpm < 5 ? 5 : wpm); }
 

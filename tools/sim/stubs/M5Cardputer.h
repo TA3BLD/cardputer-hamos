@@ -64,7 +64,8 @@ struct SimPower { int getBatteryLevel() { return 87; } };
 inline std::vector<int16_t> sim_speaker;
 struct SimSpeaker {
     std::deque<double> ends;            // when each queued piece finishes (sim ms)
-    void tone(float, uint32_t) {}
+    int tones = 0;                      // tone() calls, for the keyer checks
+    void tone(float, uint32_t) { tones++; }
     bool begin() { return true; }
     void end() {}
     void stop() { ends.clear(); }

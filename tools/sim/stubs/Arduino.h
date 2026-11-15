@@ -13,14 +13,21 @@
 #define HIGH 1
 #define LOW 0
 #define OUTPUT 1
+#define INPUT 0
+#define INPUT_PULLUP 2
 #define SERIAL_8N1 0
 
 extern uint32_t sim_ms;
 long long sim_utc_ms();         // the simulator's UTC clock (defined in sim.cpp)
 inline uint32_t millis() { return sim_ms; }
 inline void delay(int) {}
+// Pin levels: what HamOS wrote, and what the script sets for inputs.
+inline int sim_pin_out[64];
+inline int sim_pin_in[64] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 inline void pinMode(int, int) {}
-inline void digitalWrite(int, int) {}
+inline void digitalWrite(int pin, int v) { if (pin >= 0 && pin < 64) sim_pin_out[pin] = v; }
+inline int digitalRead(int pin) { return pin >= 0 && pin < 64 ? sim_pin_in[pin] : 1; }
 inline void configTime(long, int, const char*, const char* = nullptr) {}
 inline uint32_t esp_random() { return (uint32_t)rand() * 2654435761u + (uint32_t)rand(); }
 
@@ -62,8 +69,17 @@ struct SimStream {
     int available() { return (int)rx.size(); }
     int read() { if (rx.empty()) return -1; char c = rx.front(); rx.pop_front(); return (unsigned char)c; }
 };
-struct SimSerial : SimStream { void begin(long, int, int, int) {} };
+struct SimSerial : SimStream {
+    std::string tx;
+    long baud = 0;
+    void begin(long b, int, int, int) { baud = b; }
+    void end() { baud = 0; }
+    size_t write(const uint8_t* d, size_t n) { tx.append((const char*)d, n); return n; }
+    size_t write(uint8_t c) { tx += (char)c; return 1; }
+    void print(const char* s) { tx += s; }
+};
 inline SimSerial Serial1;
+inline SimSerial Serial2;
 
 // The USB serial port: the script (or devsim's pseudo terminal) writes into
 // rx; what HamOS sends collects in tx, or goes to sim_usb_fd when set.

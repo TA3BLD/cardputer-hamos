@@ -6,6 +6,11 @@
 #include <RadioLib.h>
 #include <WiFiUdp.h>
 #include "core/Log.h"
+#include "core/Keyer.h"
+#include "core/Voice.h"
+#include "core/Settings.h"
+#include "core/Cap.h"
+#include <cmath>
 #include "core/Callbook.h"
 #include "core/LogUpload.h"
 #include "core/Pota.h"
@@ -178,6 +183,8 @@ static void tab() { Keys s; s.tab = true; press(s); }
 static void del(int n = 1) { while (n--) { Keys s; s.backspace = true; press(s); } }
 static void back() { key('`'); }
 static void shot(const char* name) { run(1100); printf("S %s\n", name); }
+extern std::deque<uint8_t> sim_ble_from_radio;
+extern std::string sim_ble_to_radio;
 static void openNext() { key('/'); enter(); }   // next launcher tile
 
 // ---- simulated mesh neighbours ----
@@ -682,6 +689,107 @@ int main() {
     }
     shot("log-upload");
     back();
+
+    // ---- Radio over CAT: Icom CI-V cable on the Grove port ----
+    auto setRig = [](const char* type) {
+        config::set("rig_type", type);
+        settings::apply(settings::RIG);
+        Serial2.tx.clear();
+    };
+    auto civAnswer = [](std::initializer_list<uint8_t> body) {
+        std::string f = {(char)0xFE, (char)0xFE, (char)0xE0, (char)0x94};
+        for (uint8_t b : body) f += (char)b;
+        f += (char)0xFD;
+        Serial2.inject(f);
+    };
+    setRig("civ");
+    civAnswer({0x03, 0x00, 0x40, 0x07, 0x14, 0x00});    // 14.074000
+    civAnswer({0x04, 0x01, 0x01});                      // USB
+    run(1500);
+    EXPECT(rig::connected() && rig::freqMhz() == "14.074" && rig::mode() == "SSB");
+    EXPECT(Serial2.tx.find(std::string("\xFE\xFE\x94\xE0\x03\xFD", 6)) != std::string::npos);   // asked for the frequency
+    openNext();                                // Radio
+    EXPECT(std::string(current->name()) == "Radio");
+    shot("radio");
+    Serial2.tx.clear();
+    key('b');                                  // next band: 18.100 FT8
+    EXPECT(Serial2.tx.find(std::string("\xFE\xFE\x94\xE0\x05\x00\x00\x10\x18\x00\xFD", 11)) != std::string::npos);
+    back();
+
+    // Kenwood cable
+    setRig("kenwood");
+    Serial2.inject("FA00007074000;MD2;");
+    run(1500);
+    EXPECT(rig::freqMhz() == "7.074" && rig::mode() == "SSB" && Serial2.tx.find("FA;MD;") != std::string::npos);
+    Serial2.tx.clear();
+    rig::tune(7.030, "CW");
+    EXPECT(Serial2.tx == "FA00007030000;MD3;");
+
+    // IC-705 over Bluetooth
+    setRig("ic705");
+    for (uint8_t b : {0xFE, 0xFE, 0xE0, 0xA4, 0x03, 0x00, 0x00, 0x50, 0x45, 0x01, 0xFD}) sim_ble_from_radio.push_back(b);
+    run(1500);
+    EXPECT(rig::freqMhz() == "145.500" && std::string(rig::typeName()) == "IC-705");
+    sim_ble_to_radio.clear();
+    rig::ptt(true);
+    EXPECT(sim_ble_to_radio == std::string("\xFE\xFE\xA4\xE0\x1C\x00\x01\xFD", 8));
+    rig::ptt(false);
+
+    // ---- CW keyer ----
+    setRig("civ");
+    civAnswer({0x03, 0x00, 0x40, 0x02, 0x07, 0x00});    // 7.024
+    civAnswer({0x04, 0x03, 0x01});                      // CW
+    run(1200);
+    openNext();                                // CW keyer
+    EXPECT(std::string(current->name()) == "CW keyer");
+    tab(); type("dl1abc"); tab();              // the other station
+    Serial2.tx.clear();
+    key('2');                                  // memory 2 through the radio's keyer (CI-V 17)
+    EXPECT(Serial2.tx.find("\x17" "DL1ABC DE TA3BLD UR 5NN 5NN BK") != std::string::npos);
+    shot("cw-keyer");
+    // Grove key line, no radio: the keyer times the CW itself
+    config::set("rig_type", "");
+    config::set("grove_io", "key");
+    settings::apply(settings::RIG);
+    int tones = M5Cardputer.Speaker.tones, keyedDown = 0;
+    key('1');
+    for (int i = 0; i < 400; i++) { run(5); keyedDown += sim_pin_out[cap::GROVE_1]; }
+    EXPECT(keyedDown > 20 && M5Cardputer.Speaker.tones > tones + 3);
+    back(); back();
+    // Paddle: dit held for three dits -> "S"
+    config::set("grove_io", "paddle");
+    settings::apply(settings::RIG);
+    keyer::clearPaddleText();
+    sim_pin_in[cap::GROVE_1] = 0;
+    run(70 * 5);                              // 18 WPM: dot 66 ms; three dits and gaps
+    sim_pin_in[cap::GROVE_1] = 1;
+    run(1200);
+    EXPECT(keyer::paddleText().find('S') != std::string::npos || keyer::paddleText().find('H') != std::string::npos);
+    config::set("grove_io", "");
+    settings::apply(settings::RIG);
+    back();
+
+    // ---- Voice keyer: record a message, send it with PTT through CI-V ----
+    setRig("civ");
+    civAnswer({0x03, 0x00, 0x00, 0x20, 0x14, 0x00});    // 14.200
+    run(1200);
+    openNext();                                // Voice keyer
+    EXPECT(std::string(current->name()) == "Voice keyer");
+    key('r'); key('1');
+    EXPECT(voice::recording());
+    for (int i = 0; i < 8000 * 2; i++) sim_mic.push_back((int16_t)(8000 * sin(i * 0.3)));
+    while (!sim_mic.empty()) run(10);
+    shot("voice-recording");
+    key(' ');                                  // stop
+    EXPECT(!voice::recording() && voice::length(1) > 1.5f);
+    Serial2.tx.clear();
+    key('1');                                  // transmit it
+    EXPECT(voice::playing() && Serial2.tx.find(std::string("\x1C\x00\x01", 3)) != std::string::npos);
+    shot("voice-keyer");
+    for (int i = 0; i < 400 && voice::playing(); i++) run(10);
+    EXPECT(!voice::playing() && Serial2.tx.find(std::string("\x1C\x00\x00", 3)) != std::string::npos);
+    back();
+    setRig("");
 
     // ---- FT8: what WSJT-X on the PC decodes, and a contact it logs ----
     {

@@ -64,7 +64,8 @@ public:
             if (packet.empty() || !ax25::encodeFrame(packet, frame)) {
                 status_ = "Needs a callsign and a position (grid or GPS)";
             } else {
-                audio::play(ax25::modulate(frame), ax25::SAMPLE_RATE);      // stops the microphone
+                audio::play(ax25::modulate(frame), ax25::SAMPLE_RATE);
+        audio::markTransmit();      // stops the microphone
                 sending_ = true;
                 status_ = "Sending beacon through the speaker...";
             }

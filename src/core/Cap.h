@@ -12,6 +12,9 @@ namespace cap {
 constexpr int LORA_CS = 5, LORA_RST = 3, LORA_DIO1 = 4, LORA_BUSY = 6;
 constexpr int GPS_RX = 15, GPS_TX = 13;
 constexpr long GPS_BAUD = 115200;
+// The Grove port (HY2.0-4P): two free signal pins. Used for a CAT cable
+// (G1 = from the radio, G2 = to the radio), or key / PTT outputs, or a paddle.
+constexpr int GROVE_1 = 1, GROVE_2 = 2;
 
 // Call first in setup(), before the SD card is initialised.
 void begin();

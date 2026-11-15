@@ -15,6 +15,7 @@ static Source source = nullptr;
 static void* sourceUser = nullptr;
 static uint32_t playRate = 8000;
 static bool isPlaying = false;
+static bool txFlag = false;
 static std::vector<int16_t> clip;
 static size_t clipPos = 0;
 
@@ -56,7 +57,11 @@ void play(Source src, void* user, uint32_t sampleRate) {
     sourceUser = user;
     playRate = sampleRate;
     isPlaying = src != nullptr;
+    txFlag = false;
 }
+
+void markTransmit() { txFlag = isPlaying; }
+bool transmitting() { return isPlaying && txFlag; }
 
 void play(std::vector<int16_t>&& samples, uint32_t sampleRate) {
     clip = std::move(samples);
@@ -75,6 +80,7 @@ bool playing() { return isPlaying; }
 void stopPlaying() {
     source = nullptr;
     isPlaying = false;
+    txFlag = false;
     M5Cardputer.Speaker.stop();
 }
 
@@ -91,7 +97,10 @@ void tick() {
         M5Cardputer.Speaker.playRaw(buf, n, playRate, false, 1, 0);
         chunkIndex = (chunkIndex + 1) % 3;
     }
-    if (!source && M5Cardputer.Speaker.isPlaying(0) == 0) isPlaying = false;
+    if (!source && M5Cardputer.Speaker.isPlaying(0) == 0) {
+        isPlaying = false;
+        txFlag = false;
+    }
 }
 
 }  // namespace audio

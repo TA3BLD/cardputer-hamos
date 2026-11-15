@@ -243,6 +243,7 @@ private:
         float lead = 0.5f - ms / 1000.0f;
         synth_.reset(new ft8::Synth(tones, txHz_, 8000, 14000, lead > 0 ? lead : 0));
         audio::play([](int16_t* out, size_t max, void* self) { return ((Ft8App*)self)->synth_->read(out, max); }, this, 8000);
+        audio::markTransmit();
         tx_ = true;
         lastTxPeriod_ = period_;
         Line l;

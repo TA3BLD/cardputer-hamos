@@ -22,6 +22,10 @@ void play(Source source, void* user, uint32_t sampleRate);
 void play(std::vector<int16_t>&& samples, uint32_t sampleRate);     // short clips
 bool playing();
 void stopPlaying();                 // cancels what is playing
+// What is playing now goes on the air: the main loop keys the radio (PTT)
+// for as long as it plays, when a radio or the Grove PTT line is set up.
+void markTransmit();
+bool transmitting();
 void tick();
 
 }  // namespace audio

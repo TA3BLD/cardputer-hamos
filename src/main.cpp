@@ -7,6 +7,7 @@
 #include "apps/CallbookApp.h"
 #include "apps/ClockApp.h"
 #include "apps/CountryApp.h"
+#include "apps/CwKeyerApp.h"
 #include "apps/DigiApp.h"
 #include "apps/DxClusterApp.h"
 #include "apps/Ft8App.h"
@@ -23,6 +24,7 @@
 #include "apps/PskApp.h"
 #include "apps/PotaApp.h"
 #include "apps/PskrApp.h"
+#include "apps/RadioApp.h"
 #include "apps/ReferenceApp.h"
 #include "apps/RepeaterApp.h"
 #include "apps/SatApp.h"
@@ -30,11 +32,13 @@
 #include "apps/SolarApp.h"
 #include "apps/SstvApp.h"
 #include "apps/UpdateApp.h"
+#include "apps/VoiceApp.h"
 #include "core/AprsIs.h"
 #include "core/Audio.h"
 #include "core/Cap.h"
 #include "core/Config.h"
 #include "core/Gps.h"
+#include "core/Keyer.h"
 #include "core/Lang.h"
 #include "core/LoraAprs.h"
 #include "core/Mesh.h"
@@ -45,6 +49,7 @@
 #include "core/Ui.h"
 #include "core/Updater.h"
 #include "core/Usb.h"
+#include "core/Voice.h"
 #include "core/Web.h"
 #include "core/Wsjtx.h"
 
@@ -55,6 +60,9 @@ static PotaApp potaApp;
 static PskrApp pskrApp;
 static CallbookApp callbookApp;
 static LogSyncApp logSyncApp;
+static RadioApp radioApp;
+static CwKeyerApp cwKeyerApp;
+static VoiceApp voiceApp;
 static AprsApp aprsApp;
 static MapApp mapApp;
 static DxClusterApp dxClusterApp;
@@ -78,6 +86,7 @@ static SettingsApp settingsApp;
 static UpdateApp updateApp;
 static const std::vector<App*> apps = {&logbookApp, &meshApp,     &aprsApp,    &mapApp,     &ft8App,     &dxClusterApp,
                                        &potaApp,    &pskrApp,     &callbookApp, &logSyncApp,
+                                       &radioApp,   &cwKeyerApp,  &voiceApp,
                                        &wsjtxApp,   &solarApp,    &satApp,     &gpsApp,     &digiApp,    &sstvApp,
                                        &pskApp,     &locatorApp,  &repeaterApp, &calcApp,   &morseApp,   &clockApp,
                                        &referenceApp, &guideApp,  &countryApp, &settingsApp, &updateApp};
@@ -254,6 +263,14 @@ void loop() {
     rig::tick();
     wsjtxlink::tick();
     audio::tick();
+    keyer::tick();
+    voice::tick();
+    // Digital modes and APRS transmit through the speaker: key the radio meanwhile.
+    static bool audioPtt = false;
+    if (audio::transmitting() != audioPtt) {
+        audioPtt = audio::transmitting();
+        if (config::get("ptt_audio", "1") == "1") rig::ptt(audioPtt);
+    }
     pollKeyboard();
 
     uint32_t now = millis();

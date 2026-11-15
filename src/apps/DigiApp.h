@@ -54,6 +54,7 @@ public:
             tx_ = new rtty::Modulator("RYRYRY CQ CQ CQ DE " + call + " " + call + " " + call + " K");
             audio::play([](int16_t* out, size_t max, void* self) { return ((DigiApp*)self)->tx_->read(out, max); },
                         this, rtty::SAMPLE_RATE);
+            audio::markTransmit();
             sending_ = true;
             status_ = "Sending CQ through the speaker...";
         } else {
