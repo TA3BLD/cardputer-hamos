@@ -43,6 +43,8 @@ bool sendBeacon(std::string& error);
 std::string beaconPacket(const std::string& path);      // "" without a position
 void ingest(const std::string& tnc2, Source source);
 bool canSend();                 // online or LoRa-APRS ready
+// A complete packet (with our header) to APRS-IS only; false when not logged in.
+bool sendRaw(const std::string& tnc2);
 // Forwards a packet heard on the radio to APRS-IS (receive-only iGate).
 void gate(const std::string& tnc2);
 

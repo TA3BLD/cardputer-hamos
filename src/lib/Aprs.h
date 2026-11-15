@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <vector>
 
 namespace aprs {
 
@@ -184,6 +185,86 @@ inline std::string formatMessage(const std::string& to, const std::string& text,
 }
 
 inline std::string formatAck(const std::string& to, const std::string& id) { return formatMessage(to, "ack" + id, ""); }
+
+// Digipeating by the WIDEn-N rules. Returns the packet to send again, or ""
+// when this station should not repeat it. Fill-in digi (WIDE1-1) always;
+// WIDE2-n too with `wide`. Our own callsign in the path is always served.
+//   SRC>APRS,WIDE1-1,WIDE2-1:... -> SRC>APRS,MYCALL,WIDE1*,WIDE2-1:...
+//   SRC>APRS,WIDE2-2:...         -> SRC>APRS,MYCALL*,WIDE2-1:...  (wide)
+inline std::string digipeat(const std::string& tnc2, const std::string& myCall, bool wide) {
+    Packet p;
+    if (!parseTnc2(tnc2, p) || p.src == myCall || myCall.empty()) return "";
+    std::vector<std::string> path;
+    size_t a = 0;
+    while (a <= p.path.size() && !p.path.empty()) {
+        size_t b = p.path.find(',', a);
+        path.push_back(p.path.substr(a, b == std::string::npos ? std::string::npos : b - a));
+        if (b == std::string::npos) break;
+        a = b + 1;
+    }
+    if (path.size() > 7) return "";
+    int used = -1;                                  // last element already digipeated
+    for (size_t i = 0; i < path.size(); i++) {
+        if (!path[i].empty() && path[i].back() == '*') {
+            used = (int)i;
+            path[i].pop_back();
+        }
+        if (path[i] == myCall && (int)i <= used) return "";      // we already did
+    }
+    size_t next = (size_t)(used + 1);
+    if (next >= path.size()) return "";
+    std::string el = path[next];
+    std::vector<std::string> out(path.begin(), path.begin() + (long)next);
+    int mark = -1;                                  // index in `out` that gets the '*'
+    if (el == myCall) {
+        out.push_back(myCall);
+        mark = (int)out.size() - 1;
+    } else if (el == "WIDE1-1") {
+        out.push_back(myCall);
+        out.push_back("WIDE1");
+        mark = (int)out.size() - 1;
+    } else if (wide && el.size() == 7 && el.compare(0, 5, "WIDE2") == 0 && el[5] == '-' && el[6] >= '1' && el[6] <= '2') {
+        int n = el[6] - '0';
+        out.push_back(myCall);
+        if (n == 1) {
+            out.push_back("WIDE2");
+            mark = (int)out.size() - 1;
+        } else {
+            mark = (int)out.size() - 1;
+            out.push_back("WIDE2-" + std::to_string(n - 1));
+        }
+    } else {
+        return "";
+    }
+    for (size_t i = next + 1; i < path.size(); i++) out.push_back(path[i]);
+    std::string route = p.dst;
+    for (size_t i = 0; i < out.size(); i++) route += "," + out[i] + ((int)i == mark ? "*" : "");
+    return p.src + ">" + route + ":" + p.info;
+}
+
+// Position report with weather (APRS 1.01 chapter 12), symbol '_'.
+//   tempC: temperature; humidity %; hpa: sea-level pressure; NAN when unknown
+inline std::string formatWeather(double lat, double lon, double tempC, double humidity, double hpa, const std::string& comment) {
+    std::string wx = ".../...g...";                 // no wind sensor
+    char b[16];
+    if (tempC == tempC) {
+        int f = (int)std::lround(tempC * 9.0 / 5.0 + 32.0);
+        snprintf(b, sizeof(b), "t%03d", f);       // -5 F prints as "t-05"
+        wx += b;
+    } else {
+        wx += "t...";
+    }
+    if (humidity == humidity) {
+        int h = (int)std::lround(humidity);
+        snprintf(b, sizeof(b), "h%02d", h >= 100 ? 0 : h < 1 ? 1 : h);
+        wx += b;
+    }
+    if (hpa == hpa) {
+        snprintf(b, sizeof(b), "b%05d", (int)std::lround(hpa * 10));
+        wx += b;
+    }
+    return formatPosition(lat, lon, '/', '_', wx + comment);
+}
 
 // APRS-IS login passcode for a callsign (the SSID is ignored).
 inline int passcode(const std::string& call) {

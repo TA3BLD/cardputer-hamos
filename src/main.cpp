@@ -25,6 +25,7 @@
 #include "apps/PotaApp.h"
 #include "apps/PskrApp.h"
 #include "apps/RadioApp.h"
+#include "apps/RangeApp.h"
 #include "apps/ReferenceApp.h"
 #include "apps/RepeaterApp.h"
 #include "apps/SatApp.h"
@@ -32,9 +33,11 @@
 #include "apps/SolarApp.h"
 #include "apps/SstvApp.h"
 #include "apps/UpdateApp.h"
+#include "apps/WxApp.h"
 #include "apps/VoiceApp.h"
 #include "core/AprsIs.h"
 #include "core/Audio.h"
+#include "core/Ble.h"
 #include "core/Cap.h"
 #include "core/Config.h"
 #include "core/Gps.h"
@@ -43,12 +46,14 @@
 #include "core/LoraAprs.h"
 #include "core/Mesh.h"
 #include "core/Net.h"
+#include "core/RangeTest.h"
 #include "core/PskReporter.h"
 #include "core/Rig.h"
 #include "core/Storage.h"
 #include "core/Ui.h"
 #include "core/Updater.h"
 #include "core/Usb.h"
+#include "core/Weather.h"
 #include "core/Voice.h"
 #include "core/Web.h"
 #include "core/Wsjtx.h"
@@ -63,6 +68,8 @@ static LogSyncApp logSyncApp;
 static RadioApp radioApp;
 static CwKeyerApp cwKeyerApp;
 static VoiceApp voiceApp;
+static RangeApp rangeApp;
+static WxApp wxApp;
 static AprsApp aprsApp;
 static MapApp mapApp;
 static DxClusterApp dxClusterApp;
@@ -86,7 +93,7 @@ static SettingsApp settingsApp;
 static UpdateApp updateApp;
 static const std::vector<App*> apps = {&logbookApp, &meshApp,     &aprsApp,    &mapApp,     &ft8App,     &dxClusterApp,
                                        &potaApp,    &pskrApp,     &callbookApp, &logSyncApp,
-                                       &radioApp,   &cwKeyerApp,  &voiceApp,
+                                       &radioApp,   &cwKeyerApp,  &voiceApp,    &rangeApp,  &wxApp,
                                        &wsjtxApp,   &solarApp,    &satApp,     &gpsApp,     &digiApp,    &sstvApp,
                                        &pskApp,     &locatorApp,  &repeaterApp, &calcApp,   &morseApp,   &clockApp,
                                        &referenceApp, &guideApp,  &countryApp, &settingsApp, &updateApp};
@@ -233,10 +240,13 @@ void setup() {
     net::begin();
     gps::begin();
     mesh::begin();
+    rangetest::begin();
     loraaprs::begin();
     aprsis::begin();
     rig::begin();
+    weather::begin();
     wsjtxlink::begin();
+    if (config::get("mesh_ble", "0") == "1") ble::meshStart();
     M5Cardputer.Display.setBrightness(brightness());
     noteActivity();
 
@@ -259,6 +269,9 @@ void loop() {
     usb::tick();
     updater::tick(current == &launcher);
     pskr::tick();
+    ble::tick();
+    rangetest::tick();
+    weather::tick();
     aprsis::tick();
     rig::tick();
     wsjtxlink::tick();

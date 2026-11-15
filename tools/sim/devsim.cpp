@@ -11,6 +11,7 @@
 // Cardputer serves itself (core/Web.cpp: "/", "/api", "/screen").
 #include "main.cpp"
 #include "core/WebPage.h"
+#include "core/PhoneApi.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -151,6 +152,41 @@ static void webTick() {
     close(fd);
 }
 
+// ---- Meshtastic client API over a second pseudo terminal ----
+// The framing of Meshtastic's serial API: 0x94 0xC3, length (2 bytes), protobuf.
+static int meshMaster = -1;
+static std::string meshIn;
+
+static void meshApiTick() {
+    if (meshMaster < 0) return;
+    char buf[1024];
+    ssize_t n = ::read(meshMaster, buf, sizeof(buf));
+    if (n > 0) meshIn.append(buf, (size_t)n);
+    for (;;) {
+        size_t s = meshIn.find("\x94\xc3");
+        if (s == std::string::npos) { if (meshIn.size() > 1) meshIn.erase(0, meshIn.size() - 1); break; }
+        if (meshIn.size() < s + 4) { meshIn.erase(0, s); break; }
+        size_t len = ((uint8_t)meshIn[s + 2] << 8) | (uint8_t)meshIn[s + 3];
+        if (len > 512) { meshIn.erase(0, s + 1); continue; }
+        if (meshIn.size() < s + 4 + len) { meshIn.erase(0, s); break; }
+        phoneapi::handleToRadio(meshIn.substr(s + 4, len));
+        meshIn.erase(0, s + 4 + len);
+    }
+    std::string m;
+    while (phoneapi::nextFromRadio(m)) {
+        std::string f = "\x94\xc3";
+        f += (char)(m.size() >> 8);
+        f += (char)(m.size() & 0xFF);
+        f += m;
+        size_t done = 0;
+        while (done < f.size()) {
+            ssize_t w = ::write(meshMaster, f.data() + done, f.size() - done);
+            if (w <= 0) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }
+            done += (size_t)w;
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     int slave;
     char name[128];
@@ -161,6 +197,18 @@ int main(int argc, char** argv) {
     tcsetattr(slave, TCSANOW, &t);
     fcntl(master, F_SETFL, fcntl(master, F_GETFL) | O_NONBLOCK);
     fprintf(stderr, "HamOS device simulator: USB serial port is %s\n", name);
+    {
+        int meshSlave;
+        char meshName[128];
+        if (openpty(&meshMaster, &meshSlave, meshName, nullptr, nullptr) == 0) {
+            struct termios mt;
+            tcgetattr(meshSlave, &mt);
+            cfmakeraw(&mt);
+            tcsetattr(meshSlave, TCSANOW, &mt);
+            fcntl(meshMaster, F_SETFL, fcntl(meshMaster, F_GETFL) | O_NONBLOCK);
+            fprintf(stderr, "Meshtastic API (as over Bluetooth) on %s\n", meshName);
+        }
+    }
     printf("%s\n", name);
     fflush(stdout);
     if (!freopen("/dev/null", "w", stdout)) return 1;           // the stub display prints drawing commands
@@ -189,6 +237,7 @@ int main(int argc, char** argv) {
         }
         loop();
         webTick();
+        meshApiTick();
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 }

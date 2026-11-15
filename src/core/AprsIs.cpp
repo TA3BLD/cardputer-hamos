@@ -89,6 +89,12 @@ static bool sendPacket(const std::string& info) {
 
 bool canSend() { return loggedIn || loraaprs::ready(); }
 
+bool sendRaw(const std::string& tnc2) {
+    if (!loggedIn) return false;
+    sendLine(tnc2);
+    return true;
+}
+
 void gate(const std::string& tnc2) {
     if (!loggedIn || config::get("lora_igate", "0") != "1") return;
     size_t colon = tnc2.find(':');

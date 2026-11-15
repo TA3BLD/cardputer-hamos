@@ -99,7 +99,15 @@ Node& touchNode(uint32_t id) {
     return nodeList.back();
 }
 
+uint32_t addedCount = 0;
+struct Hook {
+    int port;
+    PortHandler handler;
+};
+std::vector<Hook> hooks;
+
 void addMessage(const Message& m) {
+    addedCount++;
     if (msgs.size() >= MAX_MESSAGES) msgs.erase(msgs.begin());
     msgs.push_back(m);
     char stamp[24] = "----------- --:--";
@@ -222,6 +230,9 @@ void onPacket(const uint8_t* data, size_t len, float rssi, float snr) {
             node.lon = p.lon;
         }
     }
+    if (forMe || h.to == BROADCAST)
+        for (const Hook& k : hooks)
+            if (k.port == d.portnum) k.handler(h.from, h.to, d.payload, snr, rssi);
     if (forMe && h.wantAck) {                   // confirm receipt to the sender
         Data ack;
         ack.portnum = PORT_ROUTING;
@@ -330,21 +341,40 @@ std::string nodeName(uint32_t id, bool shortName) {
     return buf;
 }
 
-bool sendText(const std::string& text, std::string& error) {
+bool sendText(const std::string& text, std::string& error) { return sendTextTo(text, BROADCAST, error); }
+uint32_t messagesAdded() { return addedCount; }
+
+void onPort(int portnum, PortHandler handler) {
+    for (Hook& k : hooks)
+        if (k.port == portnum) { k.handler = handler; return; }
+    hooks.push_back({portnum, handler});
+}
+
+uint32_t sendPort(int portnum, const std::string& payload, uint32_t to) {
+    if (!isReady) return 0;
+    Data d;
+    d.portnum = portnum;
+    d.payload = payload;
+    return enqueue(d, to, false);
+}
+
+bool sendTextTo(const std::string& text, uint32_t to, std::string& error, uint32_t* packetId) {
     if (!isReady) { error = statusText; return false; }
     if (text.empty()) { error = "Nothing to send"; return false; }
     if (text.size() > MAX_TEXT) { error = "Message too long"; return false; }
     Data d;
     d.portnum = PORT_TEXT;
     d.payload = text;
-    uint32_t id = enqueue(d, BROADCAST, false);
+    uint32_t id = enqueue(d, to, to != BROADCAST);
     if (!id) { error = "Send queue is full"; return false; }
+    if (packetId) *packetId = id;
     Message m;
     m.from = nodeId;
     m.packetId = id;
     m.text = text;
     m.utc = nowUtc();
     m.mine = true;
+    m.direct = to != BROADCAST;
     addMessage(m);
     return true;
 }

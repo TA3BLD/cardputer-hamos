@@ -4,6 +4,7 @@
 #include "AprsIs.h"
 #include "Config.h"
 #include "Lora.h"
+#include "lib/Aprs.h"
 
 namespace loraaprs {
 
@@ -14,6 +15,29 @@ static float rssi = 0, snr = 0;
 static unsigned heardCount = 0;
 static uint32_t lastBeaconMs = 0, lastRxMs = 0;
 static bool beaconSent = false;
+static std::deque<std::pair<std::string, uint32_t>> recent;     // digipeated: source + text, when
+static unsigned digiCount = 0;
+
+// Repeats packets by the WIDEn-N rules ("LoRa digi": 1 = WIDE1-1 fill-in, 2 = also WIDE2-n).
+static void digipeat(const std::string& text) {
+    std::string mode = config::get("lora_digi", "0");
+    if (mode != "1" && mode != "2") return;
+    std::string me = aprsis::myCall();
+    std::string out = aprs::digipeat(text, me, mode == "2");
+    if (out.empty()) return;
+    aprs::Packet p;
+    if (!aprs::parseTnc2(text, p)) return;
+    std::string key = p.src + ">" + p.info;
+    uint32_t now = millis();
+    while (!recent.empty() && now - recent.front().second > 30000) recent.pop_front();
+    for (const auto& r : recent)
+        if (r.first == key) return;             // repeated in the last 30 s already
+    recent.push_back({key, now});
+    if (queue.size() < 6) {
+        queue.push_front(out);
+        digiCount++;
+    }
+}
 
 static void onPacket(const uint8_t* data, size_t len, float r, float s) {
     std::string text((const char*)data, len);
@@ -26,6 +50,7 @@ static void onPacket(const uint8_t* data, size_t len, float r, float s) {
     lastRxMs = millis();
     aprsis::ingest(text, aprsis::LORA);
     aprsis::gate(text);
+    digipeat(text);
 }
 
 void begin() {
@@ -78,6 +103,7 @@ bool send(const std::string& tnc2) {
 }
 
 bool enabled() { return isEnabled; }
+unsigned digipeated() { return digiCount; }
 bool ready() { return isReady; }
 std::string status() { return statusText; }
 float lastRssi() { return rssi; }

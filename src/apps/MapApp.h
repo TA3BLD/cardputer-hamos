@@ -9,6 +9,7 @@
 #include "core/Mesh.h"
 #include "core/Station.h"
 #include "core/Storage.h"
+#include "core/RangeTest.h"
 #include "core/Ui.h"
 #include "lib/Maidenhead.h"
 #include "lib/MapData.h"
@@ -234,6 +235,14 @@ private:
 
     void drawMarks() {
         double x, y;
+        // range test receptions: where a packet arrived, coloured by signal
+        for (const rangetest::Hit& h : rangetest::hits()) {
+            if (!h.havePos) continue;
+            view_.toScreen(h.lat, h.lon, x, y);
+            if (x < 1 || x >= ui::W - 1 || y < view_.y0 + 1 || y >= view_.y0 + view_.h - 1) continue;
+            uint16_t c = h.snr > 0 ? ui::C_OK : h.snr > -10 ? ui::C_NOTICE : h.snr > -15 ? ui::C_WARN : ui::C_ERR;
+            ui::fill((int)x - 1, (int)y - 1, 3, 3, c);
+        }
         // own position
         double lat, lon;
         if (station::position(lat, lon)) {

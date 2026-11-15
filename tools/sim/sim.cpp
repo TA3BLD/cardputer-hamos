@@ -7,6 +7,10 @@
 #include <WiFiUdp.h>
 #include "core/Log.h"
 #include "core/Keyer.h"
+#include "core/PhoneApi.h"
+#include "core/RangeTest.h"
+#include "core/Weather.h"
+#include "core/LoraAprs.h"
 #include "core/Voice.h"
 #include "core/Settings.h"
 #include "core/Cap.h"
@@ -790,6 +794,83 @@ int main() {
     EXPECT(!voice::playing() && Serial2.tx.find(std::string("\x1C\x00\x00", 3)) != std::string::npos);
     back();
     setRig("");
+
+    // ---- Meshtastic app interface (as over Bluetooth) ----
+    {
+        EXPECT(mesh::ready());
+        meshtastic::PbWriter want;
+        want.fieldVarint(3, 4242);             // ToRadio.want_config_id
+        phoneapi::handleToRadio(want.out);
+        std::string f;
+        int infos = 0, channels = 0;
+        bool complete = false, myInfo = false;
+        while (phoneapi::nextFromRadio(f)) {
+            meshtastic::PbReader r(f);
+            while (r.next()) {
+                if (r.field == 3) myInfo = true;
+                if (r.field == 4) infos++;
+                if (r.field == 10) channels++;
+                if (r.field == 7 && r.value == 4242) complete = true;
+            }
+        }
+        EXPECT(myInfo && infos >= 2 && channels == 8 && complete);
+        fromNode(0x0badcafe, meshtastic::PORT_TEXT, "Telefona da gelsin");
+        run(100);
+        bool forwarded = false;
+        while (phoneapi::nextFromRadio(f)) forwarded |= f.find("Telefona da gelsin") != std::string::npos;
+        EXPECT(forwarded);
+        phoneapi::reset();
+    }
+
+    // ---- Range test: a Meshtastic node sends "seq N", we note where we heard it ----
+    announce(0x5eed0001, "Range sender", "RNG", 38.44, 27.16, 0);
+    openNext();                                // Range test
+    EXPECT(std::string(current->name()) == "Range test");
+    key('r');
+    for (int n = 1; n <= 6; n++) {
+        if (n == 4) continue;                  // one lost
+        fromNode(0x5eed0001, 66, "seq " + std::to_string(n));
+    }
+    EXPECT(rangetest::hits().size() == 5 && rangetest::lost() == 1 && rangetest::bestKm() > 1.5 && rangetest::bestKm() < 3.5);
+    {
+        std::string csv;
+        EXPECT(storage::readFile("/HamOS/rangetest.csv", csv) && csv.find(",RNG,") == std::string::npos && csv.find("Range sender,6,") != std::string::npos);
+    }
+    shot("range-test");
+    key('r');                                  // off
+    key('s');                                  // send
+    size_t loraBefore = sim_lora_sent.size();
+    run(32000);
+    EXPECT(rangetest::sentCount() >= 1 && sim_lora_sent.size() > loraBefore);
+    key('s');
+    back();
+
+    // ---- Weather station and LoRa-APRS digipeater ----
+    config::set("grove_io", "wx");
+    config::set("lora_mode", "aprs");
+    config::set("lora_digi", "1");
+    settings::apply(settings::RIG | settings::MESH);
+    run(1500);
+    EXPECT(weather::valid() && std::fabs(weather::celsius() - 18.4) < 0.01 && loraaprs::ready());
+    sim_lora_inject(std::string("<\xff\x01") + "TA1WAL-7>APLRT1,WIDE1-1:!3826.50N/02711.00E>walking");
+    run(2500);
+    EXPECT(sim_lora_sent.back() == std::string("<\xff\x01") + "TA1WAL-7>APLRT1,TA3BLD-7,WIDE1*:!3826.50N/02711.00E>walking");
+    size_t afterDigi = sim_lora_sent.size();
+    sim_lora_inject(std::string("<\xff\x01") + "TA1WAL-7>APLRT1,WIDE1-1:!3826.50N/02711.00E>walking");     // the same again: not repeated
+    run(2500);
+    EXPECT(sim_lora_sent.size() == afterDigi);
+    openNext();                                // WX / Digi
+    EXPECT(std::string(current->name()) == "WX / Digi");
+    key('b');
+    run(2500);
+    EXPECT(sim_lora_sent.back().find("TA3BLD-13>APZHAM,WIDE1-1:!3825.42N/02708.57E_.../...g...t065h63b") != std::string::npos);
+    shot("wx-digi");
+    back();
+    config::set("grove_io", "");
+    config::set("lora_mode", "mesh");
+    config::set("lora_digi", "0");
+    settings::apply(settings::RIG | settings::MESH);
+    EXPECT(mesh::ready());
 
     // ---- FT8: what WSJT-X on the PC decodes, and a contact it logs ----
     {

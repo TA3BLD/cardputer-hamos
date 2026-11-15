@@ -48,7 +48,17 @@ bool ready();
 std::string status();           // human readable state or error
 
 bool sendText(const std::string& text, std::string& error);
+// To one node (direct message) or BROADCAST; `packetId` gets the id of the packet sent.
+constexpr uint32_t BROADCAST = 0xFFFFFFFF;
+bool sendTextTo(const std::string& text, uint32_t to, std::string& error, uint32_t* packetId = nullptr);
 const std::vector<Message>& messages();
+uint32_t messagesAdded();
+
+// Other Meshtastic ports (range test, ...): a handler gets each packet on its
+// port addressed to us or to everyone.
+using PortHandler = void (*)(uint32_t from, uint32_t to, const std::string& payload, float snr, float rssi);
+void onPort(int portnum, PortHandler handler);
+uint32_t sendPort(int portnum, const std::string& payload, uint32_t to = BROADCAST);     // 0: not queued      // counts every message since start (the list keeps only the newest)
 const std::vector<Node>& nodes();
 std::string nodeName(uint32_t id, bool shortName = false);
 uint32_t myId();

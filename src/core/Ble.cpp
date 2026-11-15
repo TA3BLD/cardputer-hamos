@@ -3,6 +3,7 @@
 #include <deque>
 #include <string>
 #include "Lang.h"
+#include "PhoneApi.h"
 #include "lib/Cat.h"
 
 #ifdef HAMOS_SIM
@@ -31,9 +32,15 @@ size_t ic705Read(uint8_t* buf, size_t max) {
     }
     return n;
 }
+// The simulator talks to phoneapi directly (devsim: over a pseudo terminal).
+void meshStart() {}
+void meshStop() {}
+bool meshConnected() { return phoneapi::active(); }
+void tick() { phoneapi::tick(); }
 }  // namespace ble
 
 #else
+#include <BLE2902.h>
 #include <BLEDevice.h>
 
 namespace ble {
@@ -54,7 +61,9 @@ uint16_t chunk = 20;
 
 void stack() {
     if (stackUp) return;
-    BLEDevice::init("HamOS");
+    char name[16];
+    snprintf(name, sizeof(name), "HamOS_%04x", (unsigned)(ESP.getEfuseMac() >> 32 & 0xFFFF));
+    BLEDevice::init(name);
     stackUp = true;
 }
 
@@ -199,6 +208,126 @@ size_t ic705Read(uint8_t* buf, size_t max) {
     }
     portEXIT_CRITICAL(&mux);
     return n;
+}
+
+
+// ---- Meshtastic phone API service ----
+namespace {
+
+const char* kMeshService = "6ba1b218-15a8-461f-9fa8-5dcae273eafd";
+const char* kToRadio = "f75c76d2-129e-4dad-a1dd-7866124401e7";
+const char* kFromRadio = "2c55e69e-4993-11ed-b878-0242ac120002";
+const char* kFromNum = "ed9da18b-a800-4f66-a670-aa48a4fc4ea5";
+
+bool meshUp = false;
+volatile bool appConnected = false, appLeft = false;
+BLEServer* server = nullptr;
+BLECharacteristic* fromNumChar = nullptr;
+std::deque<std::string> toDevice, toApp;        // guarded by mux
+uint32_t notifiedNum = 0;
+
+class ServerCb : public BLEServerCallbacks {
+    void onConnect(BLEServer*) override { appConnected = true; }
+    void onDisconnect(BLEServer*) override {
+        appConnected = false;
+        appLeft = true;
+    }
+};
+class ToRadioCb : public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic* c) override {
+        std::string v((const char*)c->getData(), c->getLength());
+        portENTER_CRITICAL(&mux);
+        if (toDevice.size() < 32) toDevice.push_back(v);
+        portEXIT_CRITICAL(&mux);
+    }
+};
+class FromRadioCb : public BLECharacteristicCallbacks {
+    void onRead(BLECharacteristic* c) override {
+        std::string v;
+        portENTER_CRITICAL(&mux);
+        if (!toApp.empty()) {
+            v = toApp.front();
+            toApp.pop_front();
+        }
+        portEXIT_CRITICAL(&mux);
+        c->setValue((uint8_t*)v.data(), v.size());
+    }
+};
+ServerCb serverCb;
+ToRadioCb toRadioCb;
+FromRadioCb fromRadioCb;
+
+}  // namespace
+
+void meshStart() {
+    if (meshUp) return;
+    stack();
+    BLEDevice::setMTU(512);
+    server = BLEDevice::createServer();
+    server->setCallbacks(&serverCb);
+    BLEService* svc = server->createService(BLEUUID(kMeshService), 20);
+    BLECharacteristic* to = svc->createCharacteristic(kToRadio, BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR);
+    to->setCallbacks(&toRadioCb);
+    BLECharacteristic* from = svc->createCharacteristic(kFromRadio, BLECharacteristic::PROPERTY_READ);
+    from->setCallbacks(&fromRadioCb);
+    fromNumChar = svc->createCharacteristic(kFromNum, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+    fromNumChar->addDescriptor(new BLE2902());
+    uint32_t zero = 0;
+    fromNumChar->setValue(zero);
+    svc->start();
+    BLEAdvertising* adv = BLEDevice::getAdvertising();
+    adv->addServiceUUID(kMeshService);
+    adv->setScanResponse(true);
+    BLEDevice::startAdvertising();
+    meshUp = true;
+}
+
+void meshStop() {
+    if (!meshUp) return;
+    BLEDevice::stopAdvertising();
+    if (server && appConnected) server->disconnect(server->getConnId());
+    meshUp = false;
+}
+
+bool meshConnected() { return meshUp && appConnected; }
+
+void tick() {
+    if (!meshUp) return;
+    if (appLeft) {
+        appLeft = false;
+        phoneapi::reset();
+        portENTER_CRITICAL(&mux);
+        toDevice.clear();
+        toApp.clear();
+        portEXIT_CRITICAL(&mux);
+        BLEDevice::startAdvertising();          // ready for the next connection
+    }
+    for (;;) {
+        std::string m;
+        portENTER_CRITICAL(&mux);
+        bool have = !toDevice.empty();
+        if (have) {
+            m = toDevice.front();
+            toDevice.pop_front();
+        }
+        portEXIT_CRITICAL(&mux);
+        if (!have) break;
+        phoneapi::handleToRadio(m);
+    }
+    phoneapi::tick();
+    std::string f;
+    while (phoneapi::nextFromRadio(f)) {
+        portENTER_CRITICAL(&mux);
+        toApp.push_back(f);
+        while (toApp.size() > 120) toApp.pop_front();
+        portEXIT_CRITICAL(&mux);
+    }
+    uint32_t num = phoneapi::fromNum();
+    if (num != notifiedNum && appConnected && fromNumChar) {
+        notifiedNum = num;
+        fromNumChar->setValue(num);
+        fromNumChar->notify();
+    }
 }
 
 }  // namespace ble
