@@ -7,6 +7,7 @@
 #include <WiFiUdp.h>
 #include "core/Log.h"
 #include "core/Keyer.h"
+#include "core/Emergency.h"
 #include "core/PhoneApi.h"
 #include "core/RangeTest.h"
 #include "core/Weather.h"
@@ -1121,7 +1122,7 @@ int main() {
     {
         back();                                // to the launcher
         json::Object r = usbCall("\"cmd\":\"hello\"");
-        EXPECT(r.flag("ok") && has(r, "\"callsign\":\"TA3BLD\"") && has(r, "\"apps\":[\"Logbook\",\"Mesh\"") && has(r, "\"Settings\",\"Update\"]"));
+        EXPECT(r.flag("ok") && has(r, "\"callsign\":\"TA3BLD\"") && has(r, "\"apps\":[\"Logbook\",\"Mesh\"") && has(r, "\"Settings\",\"Update\",\"Emergency\"]"));
         EXPECT(!usbCall("\"cmd\":\"nonsense\"").flag("ok") && !usbCall("\"cmd\":\"files.read\",\"path\":\"../x\"").flag("ok"));
         // Settings
         r = usbCall("\"cmd\":\"config.list\"");
@@ -1214,7 +1215,8 @@ int main() {
         sim_http["releases/download/v9.1.0/firmware.bin"] = "REDIRECT https://release-assets.githubusercontent.com/fw?sig=1";
         sim_http["release-assets.githubusercontent.com/fw"] = fw;
 
-        openNext();                            // Update
+        usb::handle("{\"id\":1,\"cmd\":\"app.open\",\"name\":\"Update\"}");
+        run(100);
         EXPECT(std::string(current->name()) == "Update");
         enter();                               // check now
         EXPECT(updater::status().state == updater::State::Available && updater::status().latest.version == "9.1.0");
@@ -1247,6 +1249,81 @@ int main() {
         EXPECT(sim_boot_slot == 1 && sim_nvs["hamos_upd"]["undone"] == HAMOS_VERSION);
         updater::bootGuard();                  // started again, now as the old version
         EXPECT(updater::rolledBackFrom() == HAMOS_VERSION);
+        back();
+    }
+
+    // ---- Emergency ----
+    {
+        auto lastMine = []() {
+            for (size_t i = mesh::messages().size(); i-- > 0;)
+                if (mesh::messages()[i].mine) return mesh::messages()[i].text;
+            return std::string();
+        };
+        M5Cardputer.BtnA.press(true);          // hold G0 for two seconds, from the launcher
+        run(2200);
+        M5Cardputer.BtnA.press(false);
+        EXPECT(current == &emergencyApp);
+        shot("emergency");
+        size_t meshBefore = mesh::messagesAdded();
+        key('s');
+        EXPECT(emergency::state() == emergency::State::Countdown);
+        run(1500);
+        key(' ');                              // changed my mind
+        run(5000);
+        EXPECT(emergency::state() == emergency::State::Idle && mesh::messagesAdded() == meshBefore);
+
+        key('n'); type("bacak kirik"); enter();
+        run(2000);
+        shot("emergency-countdown");
+        run(3500);
+        EXPECT(emergency::state() == emergency::State::Active && emergency::sentCount() == 1);
+        EXPECT(lastMine().rfind("SOS TA3BLD", 0) == 0 && lastMine().find("bacak kirik") != std::string::npos &&
+               emergency::sentVia().find("mesh") != std::string::npos);
+        run(500);
+        // another node repeats our SOS: we hear our own packet come back
+        if (!sim_lora_sent.empty()) {
+            meshtastic::Header h;
+            std::string last = sim_lora_sent.back();
+            meshtastic::unpackHeader((const uint8_t*)last.data(), last.size(), h);
+            h.hopLimit = (uint8_t)(h.hopLimit - 1);
+            uint8_t head[meshtastic::HEADER_LEN];
+            meshtastic::packHeader(h, head);
+            sim_lora_inject(std::string((const char*)head, sizeof(head)) + last.substr(meshtastic::HEADER_LEN));
+            run(100);
+        }
+        EXPECT(emergency::repeatedByMesh());
+        fromNode(0xa1b2c3d4, meshtastic::PORT_TEXT, "Geliyoruz, 10 dakika");
+        run(61000);
+        EXPECT(emergency::sentCount() == 2);
+        EXPECT(!emergency::alerts().empty() && emergency::alerts().back().reply);
+        shot("emergency-active");
+        key('x'); key('y');
+        EXPECT(emergency::state() == emergency::State::Idle && lastMine().find("All clear") == 0);
+        back();
+
+        // Someone else calls for help while another app is open
+        usb::handle("{\"id\":1,\"cmd\":\"app.open\",\"name\":\"Logbook\"}");
+        run(100);
+        fromNode(0x0badcafe, meshtastic::PORT_TEXT, "ACİL: yaralı var, Bornova köprü");
+        run(300);
+        EXPECT(current == &emergencyApp && !emergency::alerts().empty() && !emergency::alerts().back().reply);
+        shot("emergency-alert");
+        tab(); tab();                          // alerts -> info -> SOS page
+
+        // Status messages
+        tab();
+        key('1');
+        EXPECT(lastMine().find("OK - I am safe - TA3BLD") == 0);
+        tab(); tab(); tab();                   // back to the SOS page
+
+        // Safety timer: nobody presses a key -> SOS by itself
+        emergency::setTimer(1);
+        run(62000);
+        EXPECT(emergency::state() == emergency::State::Active && emergency::siren() &&
+               lastMine().find("no answer to safety timer") != std::string::npos);
+        key('a');                              // siren off
+        key('x'); key('y');
+        EXPECT(emergency::state() == emergency::State::Idle);
         back();
     }
 

@@ -19,3 +19,26 @@ Kısa ve net olun: kim, nerede, ne oldu, neye ihtiyaç var. Mesajları yazın, n
 
 ## İnternetsiz araçlar
 Meshtastic ve LoRa-APRS, şebeke yokken kısa mesaj ve konum için kullanılabilir. HamOS'un harita, log ve rehberi internetsiz çalışır.
+
+## HamOS acil durum modu
+- Açmak için: yan taraftaki G0 tuşunu 2 saniye basılı tutun (her ekrandan) ya da menüde "Emergency".
+- S: SOS. 5 saniye geri sayım olur; bu sırada herhangi bir tuş iptal eder. N: kısa bir not ekleyerek (ör. "bacak kırık").
+- SOS mesajı konum, grid ve pil durumunu içerir. Meshtastic, LoRa-APRS (acil durum simgesi) ve internet varsa APRS-IS üzerinden gider.
+- İlk 5 dakika her dakika, sonra 5 dakikada bir tekrarlanır. Ekranda kaç kez gittiği ve sonraki gönderim görünür.
+- "Mesh tekrarladı" yazısı, mesajınızın başka bir cihaza ulaştığını gösterir. Gelen cevaplar yeşil görünür.
+- X ve Y: SOS'u bitirir ve herkese "iyiyim" mesajı gönderir.
+- Ayarlarda "SOS APRS contacts": SOS ayrıca bu çağrı işaretlerine APRS mesajı olarak gider.
+
+## Durum mesajları
+TAB ile ikinci sayfa. 1-6 tuşlarıyla tek seferlik mesaj: iyiyim, destek lazım, tıbbi yardım, su/yiyecek, mahsur kaldım, sığınağa gidiyorum. Tıbbi yardım ve mahsur kaldım acil çağrı olarak gider.
+
+## Güvenlik zamanlayıcısı
+T tuşu: 30, 60, 120, 240 dakika. Bu süre boyunca hiç tuşa basılmazsa son dakikada yüksek sesle uyarır; yine basılmazsa SOS kendiliğinden başlar ve siren açılır. Tek başına doğa yürüyüşünde kullanın.
+
+## Siren, ışık, tasarruf
+- A: siren. Hoparlörden Mors SOS (... --- ...) çalar.
+- L: ışık. Ekran SOS ritminde yanıp söner; karanlıkta yerinizi belli eder.
+- P: tasarruf. Ekranı kısar ve WiFi'yi kapatır. LoRa ve GPS açık kalır.
+
+## Başkalarının çağrıları
+Mesh'te veya APRS'te SOS, MAYDAY, ACİL, YARDIM, EMERGENCY kelimeleri geçen bir mesaj gelirse hangi ekranda olursanız olun uyarı çalar ve mesaj kırmızı görünür.

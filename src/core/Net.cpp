@@ -22,6 +22,12 @@ void begin() {
     WiFi.begin(ssid.c_str(), pass.c_str());
 }
 
+void off() {
+    WiFi.disconnect();
+    WiFi.mode(WIFI_OFF);
+    hasCredentials = false;
+}
+
 void tick() {
     if (!ntpStarted && connected()) {
         configTime(0, 0, "pool.ntp.org", "time.google.com");   // system clock in UTC

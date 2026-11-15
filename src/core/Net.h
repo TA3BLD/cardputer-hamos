@@ -4,6 +4,7 @@
 
 namespace net {
 void begin();        // (re)connect using the wifi_ssid / wifi_pass settings
+void off();          // radio off to save the battery (begin() turns it on again)
 void tick();
 bool configured();
 bool connected();

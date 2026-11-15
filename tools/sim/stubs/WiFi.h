@@ -1,12 +1,12 @@
 #pragma once
 #include <map>
 #include "Arduino.h"
-enum { WL_CONNECTED = 3, WIFI_STA = 1 };
+enum { WL_CONNECTED = 3, WIFI_STA = 1, WIFI_OFF = 0 };
 struct SimIp { String toString() { return "192.168.1.23"; } };
 struct SimWiFi {
     bool up = false;
     void disconnect() { up = false; }
-    void mode(int) {}
+    void mode(int m) { if (m == 0) up = false; }
     void setAutoReconnect(bool) {}
     void begin(const char*, const char*) { up = true; }
     int status() { return up ? WL_CONNECTED : 0; }

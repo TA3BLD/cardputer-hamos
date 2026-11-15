@@ -33,6 +33,7 @@ std::string myCall();           // callsign with SSID, "" if no callsign is set
 
 const std::vector<Station>& stations();
 const std::vector<Message>& messages();
+uint32_t messagesAdded();       // counts every message since start (the list keeps only the newest)
 int unread();
 void markRead();
 

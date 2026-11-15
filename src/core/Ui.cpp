@@ -228,7 +228,7 @@ void clearBody() { rect(0, BODY_Y, W, BODY_H, C_BG); }
 
 void text(int x, int y, const std::string& s, uint16_t color, float size) { drawText(s, x, y, size, LEFT, false, color, C_BG); }
 
-void textOver(int x, int y, const std::string& s, uint16_t color) { drawText(s, x, y, 1, LEFT, false, color, C_BG, false); }
+void textOver(int x, int y, const std::string& s, uint16_t color, float size) { drawText(s, x, y, size, LEFT, false, color, C_BG, false); }
 
 void textOn(int x, int y, const std::string& s, uint16_t color, uint16_t background) {
     drawText(s, x, y, 1, LEFT, false, color, background);

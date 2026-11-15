@@ -115,7 +115,16 @@ struct SimI2C {
 };
 struct SimM5 { SimI2C In_I2C; SimConfig config() { return {}; } };
 inline SimM5 M5;
+// The G0 button on the side; the script presses it with press(true/false).
+struct SimButton {
+    bool down = false;
+    uint32_t since = 0;
+    void press(bool d) { down = d; since = sim_ms; }
+    bool isPressed() { return down; }
+    bool pressedFor(uint32_t ms) { return down && sim_ms - since >= ms; }
+};
 struct SimCardputer {
+    SimButton BtnA;
     SimDisplay Display;
     Keyboard_Class Keyboard;
     SimPower Power;

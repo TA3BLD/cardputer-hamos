@@ -36,7 +36,7 @@ void image(int x, int y, int w, int h, const uint16_t* data);
 void tileLabel(int x, int yMiddle, const char* s, uint16_t bg);
 void text(int x, int y, const std::string& s, uint16_t color = C_TEXT, float size = 1);
 void textOn(int x, int y, const std::string& s, uint16_t color, uint16_t background);
-void textOver(int x, int y, const std::string& s, uint16_t color);     // keeps what is behind
+void textOver(int x, int y, const std::string& s, uint16_t color, float size = 1);     // keeps what is behind
 // For fixed-width tables: Turkish letters become their plain Latin form,
 // other non-ASCII characters (emoji...) become '?'; one byte per letter.
 std::string ascii(const std::string& utf8);

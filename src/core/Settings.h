@@ -97,6 +97,7 @@ inline const std::vector<Field>& fields() {
             {"brightness", "Brightness 10-255", "160", 3, false, false, settings::NONE},
             {"dim_after", "Dim after s (0=no)", "60", 4, false, false, settings::NONE},
             {"lang", "Language tr/en", "en", 2, false, false, settings::LANG},
+            {"sos_contacts", "SOS APRS contacts", "", 40, true, false, settings::NONE},
             {"update_check", "Update check 0/1", "1", 1, false, false, settings::NONE},
             {"update_repo", "Update repository", "TA3BLD/cardputer-hamos", 60, false, false, settings::NONE},
             {"update_token", "Update token", "", 100, false, true, settings::NONE},

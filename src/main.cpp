@@ -10,6 +10,7 @@
 #include "apps/CwKeyerApp.h"
 #include "apps/DigiApp.h"
 #include "apps/DxClusterApp.h"
+#include "apps/EmergencyApp.h"
 #include "apps/Ft8App.h"
 #include "apps/WsjtxApp.h"
 #include "apps/GpsApp.h"
@@ -40,6 +41,7 @@
 #include "core/Ble.h"
 #include "core/Cap.h"
 #include "core/Config.h"
+#include "core/Emergency.h"
 #include "core/Gps.h"
 #include "core/Keyer.h"
 #include "core/Lang.h"
@@ -70,6 +72,7 @@ static CwKeyerApp cwKeyerApp;
 static VoiceApp voiceApp;
 static RangeApp rangeApp;
 static WxApp wxApp;
+static EmergencyApp emergencyApp;
 static AprsApp aprsApp;
 static MapApp mapApp;
 static DxClusterApp dxClusterApp;
@@ -96,7 +99,7 @@ static const std::vector<App*> apps = {&logbookApp, &meshApp,     &aprsApp,    &
                                        &radioApp,   &cwKeyerApp,  &voiceApp,    &rangeApp,  &wxApp,
                                        &wsjtxApp,   &solarApp,    &satApp,     &gpsApp,     &digiApp,    &sstvApp,
                                        &pskApp,     &locatorApp,  &repeaterApp, &calcApp,   &morseApp,   &clockApp,
-                                       &referenceApp, &guideApp,  &countryApp, &settingsApp, &updateApp};
+                                       &referenceApp, &guideApp,  &countryApp, &settingsApp, &updateApp, &emergencyApp};
 // -----------------------------------------------------------------------------
 
 static Launcher launcher(apps);
@@ -114,7 +117,7 @@ static uint8_t brightness() {
 
 static void noteActivity() {
     lastKeyMs = millis();
-    if (dimmed) {
+    if (dimmed && !emergency::ownsBacklight()) {
         M5Cardputer.Display.setBrightness(brightness());
         dimmed = false;
     }
@@ -129,6 +132,12 @@ static void switchTo(App* next) {
 }
 
 static void dispatch(const KeyEvent& k) {
+    bool countdown = emergency::state() == emergency::State::Countdown;
+    emergency::keyPressed();                // resets the safety timer; cancels the SOS countdown
+    if (countdown) {                        // that key only cancelled the countdown
+        emergencyApp.dirty = true;
+        return;
+    }
     if (k.ch == KEY_BACK || k.esc) {
         if (!current->onBack() && current != &launcher) switchTo(&launcher);
         return;
@@ -247,6 +256,7 @@ void setup() {
     weather::begin();
     wsjtxlink::begin();
     if (config::get("mesh_ble", "0") == "1") ble::meshStart();
+    emergency::begin();
     M5Cardputer.Display.setBrightness(brightness());
     noteActivity();
 
@@ -272,6 +282,33 @@ void loop() {
     ble::tick();
     rangetest::tick();
     weather::tick();
+    emergency::tick();
+    // Emergency from any screen: hold the G0 side button for 2 seconds.
+    static bool g0Held = false;
+    if (M5Cardputer.BtnA.pressedFor(2000)) {
+        if (!g0Held && current != &emergencyApp) {
+            noteActivity();
+            switchTo(&emergencyApp);
+        }
+        g0Held = true;
+    } else if (!M5Cardputer.BtnA.isPressed()) {
+        g0Held = false;
+    }
+    // While an SOS runs, every screen says so (the SOS goes on in the background).
+    static bool sosNotice = false;
+    bool sosOn = emergency::state() == emergency::State::Active;
+    if (sosOn != sosNotice) {
+        sosNotice = sosOn;
+        ui::setNotice(sosOn ? T("SOS ACTIVE") : "");
+        lastStatusMs = 0;
+    }
+    // Someone else calls for help: show it, whatever is open.
+    if (emergency::takeNewDistress()) {
+        noteActivity();
+        if (current != &emergencyApp) switchTo(&emergencyApp);
+        emergencyApp.showAlerts();
+        M5Cardputer.Speaker.tone(2200, 700);
+    }
     aprsis::tick();
     rig::tick();
     wsjtxlink::tick();
@@ -316,7 +353,7 @@ void loop() {
     if (updateAnnounced && current == &updateApp && idNoticeMs == 0) ui::setNotice("");
 
     int dimAfter = atoi(config::get("dim_after", "60").c_str());
-    if (dimAfter > 0 && !dimmed && now - lastKeyMs > (uint32_t)dimAfter * 1000) {
+    if (dimAfter > 0 && !dimmed && !emergency::ownsBacklight() && now - lastKeyMs > (uint32_t)dimAfter * 1000) {
         M5Cardputer.Display.setBrightness(12);
         dimmed = true;
     }

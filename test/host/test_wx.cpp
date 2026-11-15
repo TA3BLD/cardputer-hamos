@@ -6,6 +6,7 @@
 #include <cstring>
 #include "lib/Aprs.h"
 #include "lib/Bme280.h"
+#include "lib/Emergency.h"
 
 static int failures = 0;
 #define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); failures++; } } while (0)
@@ -49,6 +50,16 @@ int main(int argc, char** argv) {
     CHECK(aprs::formatWeather(38.4237, 27.1428, -21.0, 100, 998.04, "").find("t-06h00b09980") != std::string::npos);
     aprs::Position pos = aprs::parsePosition(wx);
     CHECK(pos.valid && std::fabs(pos.lat - 38.4237) < 0.001);
+
+    // Emergency
+    CHECK(sos::isDistress("SOS at the lake") && sos::isDistress("mayday mayday") && sos::isDistress("Acil yardım lazım"));
+    CHECK(sos::isDistress("ACİL: köprü yıkıldı") && sos::isDistress("YARDIM!") && sos::isDistress("Emergency."));
+    CHECK(!sos::isDistress("SOSIS aldim") && !sos::isDistress("Yardimci operator") && !sos::isDistress("73 good dx"));
+    CHECK(sos::fold("çğıİöşü") == "CGIIOSU");
+    CHECK(sos::text("TA3BLD", true, 38.4237, 27.1428, "KM38nk", 87, 2, "bacak kirik") ==
+          "SOS TA3BLD 38.42370,27.14280 KM38nk bat 87% #2 bacak kirik");
+    CHECK(sos::text("TA3BLD", false, 0, 0, "", -1, 1, "") == "SOS TA3BLD #1");
+    CHECK(sos::sendTime(0) == 0 && sos::sendTime(1) == 60 && sos::sendTime(5) == 300 && sos::sendTime(6) == 600 && sos::sendTime(7) == 900);
 
     if (failures) { printf("%d failed\n", failures); return 1; }
     printf("all passed\n");

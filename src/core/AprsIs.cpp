@@ -12,6 +12,7 @@ namespace aprsis {
 namespace {
 
 constexpr size_t MAX_STATIONS = 40, MAX_MESSAGES = 30;
+uint32_t addedCount = 0;
 constexpr uint32_t RETRY_MS = 120000, BEACON_MS = 20UL * 60 * 1000;
 
 WiFiClient client;
@@ -88,6 +89,7 @@ static bool sendPacket(const std::string& info) {
 }
 
 bool canSend() { return loggedIn || loraaprs::ready(); }
+uint32_t messagesAdded() { return addedCount; }
 
 bool sendRaw(const std::string& tnc2) {
     if (!loggedIn) return false;
@@ -124,6 +126,7 @@ void ingest(const std::string& tnc2, Source source) {
         }
         for (const Message& old : messageList)                       // senders repeat until acknowledged
             if (!old.mine && old.from == p.src && old.id == m.id && old.text == m.text && !m.id.empty()) return;
+        addedCount++;
         if (messageList.size() >= MAX_MESSAGES) messageList.erase(messageList.begin());
         Message in;
         in.from = p.src;
@@ -230,6 +233,7 @@ bool sendMessage(const std::string& to, const std::string& text, std::string& er
     m.id = std::to_string(nextId++);
     m.mine = true;
     sendPacket(aprs::formatMessage(m.to, m.text, m.id));
+    addedCount++;
     if (messageList.size() >= MAX_MESSAGES) messageList.erase(messageList.begin());
     messageList.push_back(m);
     return true;
