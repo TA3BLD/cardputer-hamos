@@ -22,7 +22,7 @@
 // typed the form shows its country, distance and beam heading.
 class LogbookApp : public App {
 public:
-    const char* name() const override { return "Logbook"; }
+    const char* name() const override { return T("Logbook"); }
     uint16_t color() const override { return 0xF800; }
 
     void onEnter() override {
@@ -53,7 +53,7 @@ public:
             if (k.ch == 'y' || k.ch == 'Y') {
                 size_t index = qsos.size() - 1 - (size_t)selected_;     // list shows newest first
                 std::string call = qsos[index].call;
-                status_ = logbook::remove(index) ? "Deleted " + call : "Delete failed";
+                status_ = logbook::remove(index) ? T("Deleted ") + call : T("Delete failed");
                 if (selected_ >= (int)logbook::recent().size()) selected_ = 0;
             }
             confirmDelete_ = false;
@@ -132,7 +132,7 @@ private:
 
     void save() {
         if (in_[CALL].value.empty()) {
-            status_ = "Callsign required";
+            status_ = T("Callsign required");
             field_ = CALL;
             return;
         }
@@ -166,7 +166,7 @@ private:
             q.time = buf;
         }
         bool ok = logbook::add(q);
-        status_ = ok ? "Saved " + q.call : "No SD card: lost at power-off";
+        status_ = ok ? T("Saved ") + q.call : T("No SD card: lost at power-off");
         selected_ = 0;
         editing_ = false;
     }
@@ -175,8 +175,8 @@ private:
         static const char* labels[FIELDS] = {"Callsign", "Freq MHz", "Mode", "RST sent", "RST rcvd", "Note"};
         ui::clearBody();
         for (int i = 0; i < FIELDS; i++)
-            ui::formRow(i, (i == NOTE && contest()) ? "Nr rcvd" : labels[i], in_[i].value, i == field_);
-        if (contest()) ui::text(150, ui::BODY_Y + 2 + SENT * ui::ROW_H + 2, "send nr " + nextSerial(), ui::C_OK);
+            ui::formRow(i, (i == NOTE && contest()) ? T("Nr rcvd") : labels[i], in_[i].value, i == field_);
+        if (contest()) ui::text(150, ui::BODY_Y + 2 + SENT * ui::ROW_H + 2, T("send nr ") + nextSerial(), ui::C_OK);
 
         // Line 1: callbook name and town, else country, distance and heading from the prefix.
         const dxcc::Entity* e = dxcc::lookup(in_[CALL].value);
@@ -205,12 +205,12 @@ private:
         }
         // Line 2: band and warnings.
         std::string band = adif::band(atof(in_[FREQ].value.c_str()));
-        ui::text(6, ui::BODY_Y + 90, band.empty() ? "out of band" : band, band.empty() ? ui::C_WARN : ui::C_OK, 1.5);
+        ui::text(6, ui::BODY_Y + 90, band.empty() ? T("out of band") : band, band.empty() ? ui::C_WARN : ui::C_OK, 1.5);
         int dupes = 0;
         int worked = in_[CALL].value.empty() ? 0 : logbook::worked(in_[CALL].value, in_[FREQ].value, in_[MODE].value, dupes);
-        if (dupes) ui::text(84, ui::BODY_Y + 90, "DUPE!", ui::C_ERR, 1.5);
-        else if (worked) ui::text(84, ui::BODY_Y + 93, "worked " + std::to_string(worked) + "x before", ui::C_WARN);
-        else if (!net::timeValid()) ui::text(84, ui::BODY_Y + 93, "no UTC time yet", ui::C_WARN);
+        if (dupes) ui::text(84, ui::BODY_Y + 90, T("DUPE!"), ui::C_ERR, 1.5);
+        else if (worked) ui::text(84, ui::BODY_Y + 93, T("worked ") + std::to_string(worked) + T("x before"), ui::C_WARN);
+        else if (!net::timeValid()) ui::text(84, ui::BODY_Y + 93, T("no UTC time yet"), ui::C_WARN);
         ui::footer(!status_.empty() ? status_.c_str()
                    : field_ == FIELDS - 1 ? "ENTER save QSO   ` cancel" : "ENTER/TAB next   ` cancel");
     }
@@ -219,8 +219,8 @@ private:
         const auto& qsos = logbook::recent();
         if (qsos.empty()) {
             ui::clearBody();
-            ui::textCentered(ui::BODY_Y + 30, "Log is empty", ui::C_DIM, 2);
-            ui::textCentered(ui::BODY_Y + 62, "Press N to log your first QSO", ui::C_DIM);
+            ui::textCentered(ui::BODY_Y + 30, T("Log is empty"), ui::C_DIM, 2);
+            ui::textCentered(ui::BODY_Y + 62, T("Press N to log your first QSO"), ui::C_DIM);
         } else {
             std::vector<std::string> rows;
             char line[48];
@@ -234,12 +234,12 @@ private:
             ui::list(rows, selected_, scroll_);
         }
         std::string hint;
-        if (confirmDelete_) hint = "Delete " + qsos[qsos.size() - 1 - (size_t)selected_].call + "?  Y yes   any key no";
+        if (confirmDelete_) hint = T("Delete ") + qsos[qsos.size() - 1 - (size_t)selected_].call + T("?  Y yes   any key no");
         else if (!status_.empty()) hint = status_;
         else if (contest()) {
-            hint = "N new  D del  " + std::to_string(logbook::total()) + " QSOs  " + std::to_string(lastHour()) + "/h";
+            hint = T("N new  D del  ") + std::to_string(logbook::total()) + T(" QSOs  ") + std::to_string(lastHour()) + "/h";
         } else {
-            hint = "N new  D delete  " + std::to_string(logbook::total()) + " QSOs";
+            hint = T("N new  D delete  ") + std::to_string(logbook::total()) + T(" QSOs");
             if (!config::get("pota_ref").empty()) hint += "  " + config::get("pota_ref");
             else if (rig::connected()) hint += "  RIG";
         }

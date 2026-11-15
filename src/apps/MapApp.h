@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/AprsIs.h"
 #include "core/Mesh.h"
 #include "core/Station.h"
@@ -18,7 +19,7 @@
 // with APRS stations, Meshtastic nodes and your own position on top.
 class MapApp : public App {
 public:
-    const char* name() const override { return "Map"; }
+    const char* name() const override { return T("Map"); }
     uint16_t color() const override { return 0x4C9F; }
 
     void onEnter() override {
@@ -78,8 +79,8 @@ public:
         if (cities_) drawCities();
         drawScale();
         if (!haveMap) {
-            ui::textCentered(ui::BODY_Y + 30, "No map data on the SD card", ui::C_WARN);
-            ui::textCentered(ui::BODY_Y + 44, "Copy sdcard/HamOS/map from the repository", ui::C_DIM);
+            ui::textCentered(ui::BODY_Y + 30, T("No map data on the SD card"), ui::C_WARN);
+            ui::textCentered(ui::BODY_Y + 44, T("Copy sdcard/HamOS/map from the repository"), ui::C_DIM);
         }
         std::string hint;
         if (selected_ >= 0 && selected_ < (int)marks_.size()) {
@@ -94,7 +95,7 @@ public:
             hint = ui::displayable(buf);
             if (ui::glyphCount(hint) > 39) hint = ui::wrapLines(hint, 39)[0];
         } else {
-            hint = "-/= zoom  arrows move  TAB stations";
+            hint = T("-/= zoom  arrows move  TAB stations");
         }
         ui::footer(hint.c_str());
     }

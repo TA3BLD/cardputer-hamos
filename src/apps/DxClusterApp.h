@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Config.h"
 #include "core/Flags.h"
 #include "core/Log.h"
@@ -18,7 +19,7 @@
 // highlighted and announced with a beep.
 class DxClusterApp : public App {
 public:
-    const char* name() const override { return "DX Cluster"; }
+    const char* name() const override { return T("DX Cluster"); }
     uint16_t color() const override { return 0xF81F; }
 
     void onEnter() override {
@@ -28,7 +29,7 @@ public:
         line_.clear();
         loggedIn_ = false;
         if (config::get("callsign").empty()) { state_ = IDLE; status_ = "Set your callsign in Settings first"; }
-        else if (!net::connected()) { state_ = IDLE; status_ = "No WiFi connection"; }
+        else if (!net::connected()) { state_ = IDLE; status_ = T("No WiFi connection"); }
         else { state_ = CONNECT_PENDING; status_ = "Connecting to " + config::get("dx_host", kDefaultHost) + "..."; }
     }
 
@@ -40,10 +41,10 @@ public:
             if (client_.connect(config::get("dx_host", kDefaultHost).c_str(), (uint16_t)port, 6000)) {
                 state_ = ONLINE;
                 connectedMs_ = now;
-                status_ = "Connected, waiting for spots...";
+                status_ = T("Connected, waiting for spots...");
             } else {
                 state_ = IDLE;
-                status_ = "Could not reach the cluster";
+                status_ = T("Could not reach the cluster");
             }
             dirty = true;
             return;
@@ -51,7 +52,7 @@ public:
         if (state_ != ONLINE) return;
         if (!client_.connected()) {
             state_ = IDLE;
-            status_ = "Connection closed by the cluster";
+            status_ = T("Connection closed by the cluster");
             dirty = true;
             return;
         }
@@ -102,10 +103,10 @@ public:
         std::string hint;
         if (!rows.empty()) {
             const Row* r = rows[(size_t)selected_];
-            hint = (r->isNew ? "NEW! " : "") + r->spot.comment + " <" + r->spot.spotter + ">";
+            hint = (r->isNew ? T("NEW! ") : "") + r->spot.comment + " <" + r->spot.spotter + ">";
             if (hint.size() > 39) hint.resize(39);
         } else {
-            hint = std::string("Band ") + bandLabel(band_) + "   , and / change band";
+            hint = std::string(T("Band ")) + bandLabel(band_) + T("   , and / change band");
         }
         ui::footer(hint.c_str());
     }

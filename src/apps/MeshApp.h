@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Cap.h"
 #include "core/Config.h"
 #include "core/Mesh.h"
@@ -14,7 +15,7 @@
 // Meshtastic chat, node list and radio status. TAB cycles the three pages.
 class MeshApp : public App {
 public:
-    const char* name() const override { return "Mesh"; }
+    const char* name() const override { return T("Mesh"); }
     uint16_t color() const override { return 0x67E0; }
 
     void onEnter() override {
@@ -61,10 +62,10 @@ public:
     void draw() override {
         if (!mesh::ready()) {
             ui::clearBody();
-            ui::textCentered(ui::BODY_Y + 24, "Mesh not running", ui::C_WARN, 2);
+            ui::textCentered(ui::BODY_Y + 24, T("Mesh not running"), ui::C_WARN, 2);
             ui::textCentered(ui::BODY_Y + 56, mesh::status(), ui::C_DIM);
-            ui::textCentered(ui::BODY_Y + 72, "Needs the LoRa cap. See Settings: LoRa mode.", ui::C_DIM);
-            ui::footer("` back");
+            ui::textCentered(ui::BODY_Y + 72, T("Needs the LoRa cap. See Settings: LoRa mode."), ui::C_DIM);
+            ui::footer(T("` back"));
             return;
         }
         if (page_ == CHAT) drawChat();
@@ -102,7 +103,7 @@ private:
         int maxBack = std::max(0, (int)lines.size() - rows);
         if (scrollBack_ > maxBack) scrollBack_ = maxBack;
         ui::clearBody();
-        if (lines.empty()) ui::textCentered(ui::BODY_Y + 36, "No messages yet", ui::C_DIM);
+        if (lines.empty()) ui::textCentered(ui::BODY_Y + 36, T("No messages yet"), ui::C_DIM);
         int first = std::max(0, (int)lines.size() - rows - scrollBack_);
         for (int i = 0; i < rows && first + i < (int)lines.size(); i++)
             ui::text(4, ui::BODY_Y + 2 + i * ui::ROW_H, lines[first + i].text, lines[first + i].color);
@@ -125,8 +126,8 @@ private:
         });
         if (nodes.empty()) {
             ui::clearBody();
-            ui::textCentered(ui::BODY_Y + 36, "No nodes heard yet", ui::C_DIM);
-            ui::footer("TAB info   ` back");
+            ui::textCentered(ui::BODY_Y + 36, T("No nodes heard yet"), ui::C_DIM);
+            ui::footer(T("TAB info   ` back"));
             return;
         }
         std::vector<std::string> rows;
@@ -178,7 +179,7 @@ private:
         row("Airtime", line, s.airtimePercentOfLimit >= 90 ? ui::C_ERR : ui::C_TEXT);
         row("Position", config::get("mesh_pos", "0") == "1" ? "shared, coarse (~3 km)" : "not shared");
         row("Cap", cap::hasExpander() ? "LoRa-1262 (expander found)" : "no expander (LoRa868?)");
-        ui::footer("TAB chat   ` back");
+        ui::footer(T("TAB chat   ` back"));
     }
 
     int page_ = CHAT, selected_ = 0, scroll_ = 0, scrollBack_ = 0;

@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Storage.h"
 #include "core/Ui.h"
 
@@ -14,7 +15,7 @@
 // Any other line is a paragraph; an empty line separates paragraphs.
 class GuideApp : public App {
 public:
-    const char* name() const override { return "Guide"; }
+    const char* name() const override { return T("Guide"); }
     uint16_t color() const override { return 0x2E8B; }
 
     void onEnter() override {
@@ -56,14 +57,14 @@ public:
         if (!open_) {
             if (files_.empty()) {
                 ui::clearBody();
-                ui::textCentered(ui::BODY_Y + 24, "No guide pages", ui::C_WARN, 1.5);
-                ui::textCentered(ui::BODY_Y + 50, "Copy the sdcard folder from the", ui::C_DIM);
-                ui::textCentered(ui::BODY_Y + 62, "HamOS repository to the SD card", ui::C_DIM);
-                ui::footer("` back");
+                ui::textCentered(ui::BODY_Y + 24, T("No guide pages"), ui::C_WARN, 1.5);
+                ui::textCentered(ui::BODY_Y + 50, T("Copy the sdcard folder from the"), ui::C_DIM);
+                ui::textCentered(ui::BODY_Y + 62, T("HamOS repository to the SD card"), ui::C_DIM);
+                ui::footer(T("` back"));
                 return;
             }
             ui::list(titles_, selected_, scroll_);
-            ui::footer("ENTER read   ` back");
+            ui::footer(T("ENTER read   ` back"));
             return;
         }
         ui::clearBody();

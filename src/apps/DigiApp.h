@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Audio.h"
 #include "core/Config.h"
 #include "core/Ui.h"
@@ -13,7 +14,7 @@
 // next to the receiver's speaker. TAB switches between the two modes.
 class DigiApp : public App {
 public:
-    const char* name() const override { return "Decoder"; }
+    const char* name() const override { return T("Decoder"); }
     uint16_t color() const override { return 0xFBE0; }
 
     void onEnter() override {
@@ -48,7 +49,7 @@ public:
             rtty_.reverse = !rtty_.reverse;
         } else if (mode_ == RTTY && k.enter && !sending_) {
             std::string call = config::get("callsign");
-            if (call.empty()) { status_ = "Set your callsign in Settings first"; dirty = true; return; }
+            if (call.empty()) { status_ = T("Set your callsign in Settings first"); dirty = true; return; }
             // Plays a CQ call through the speaker: hold it to the transmitter's microphone.
             delete tx_;
             tx_ = new rtty::Modulator("RYRYRY CQ CQ CQ DE " + call + " " + call + " " + call + " K");
@@ -56,7 +57,7 @@ public:
                         this, rtty::SAMPLE_RATE);
             audio::markTransmit();
             sending_ = true;
-            status_ = "Sending CQ through the speaker...";
+            status_ = T("Sending CQ through the speaker...");
         } else {
             return;
         }
@@ -104,10 +105,10 @@ public:
         ui::fill(6, ui::BODY_Y + 15, (int)((ui::W - 12) * level), 5, (mode_ == CW && cw_.keyDown) ? ui::C_OK : ui::C_DIM);
 
         if (!micOk_) {
-            ui::textCentered(ui::BODY_Y + 50, "Microphone not available", ui::C_WARN);
+            ui::textCentered(ui::BODY_Y + 50, T("Microphone not available"), ui::C_WARN);
         } else if (text_.empty()) {
-            ui::textCentered(ui::BODY_Y + 46, "Listening...", ui::C_DIM, 1.5);
-            ui::textCentered(ui::BODY_Y + 68, "Hold the microphone to the radio's speaker", ui::C_DIM);
+            ui::textCentered(ui::BODY_Y + 46, T("Listening..."), ui::C_DIM, 1.5);
+            ui::textCentered(ui::BODY_Y + 68, T("Hold the microphone to the radio's speaker"), ui::C_DIM);
         } else {
             // The last seven lines of the decoded text.
             std::vector<std::string> lines = ui::wrapLines(text_, 38);
@@ -117,8 +118,8 @@ public:
                 ui::text(6, ui::BODY_Y + 24 + (int)(i - first) * ui::ROW_H, lines[i], ui::C_TEXT);
         }
         if (!status_.empty()) ui::footer(status_.c_str());
-        else if (mode_ == CW) ui::footer("TAB RTTY   , and / tone   DEL clear");
-        else ui::footer("TAB CW  R reverse  ENTER CQ  DEL clear");
+        else if (mode_ == CW) ui::footer(T("TAB RTTY   , and / tone   DEL clear"));
+        else ui::footer(T("TAB CW  R reverse  ENTER CQ  DEL clear"));
     }
 
 private:

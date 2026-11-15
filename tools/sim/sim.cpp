@@ -7,6 +7,7 @@
 #include <WiFiUdp.h>
 #include "core/Log.h"
 #include "core/Keyer.h"
+#include "core/Lang.h"
 #include "core/Emergency.h"
 #include "core/PhoneApi.h"
 #include "core/RangeTest.h"
@@ -1325,6 +1326,24 @@ int main() {
         key('x'); key('y');
         EXPECT(emergency::state() == emergency::State::Idle);
         back();
+    }
+
+    // ---- The same screens in Turkish (the device's default language) ----
+    {
+        config::set("lang", "tr");
+        settings::apply(settings::LANG);
+        usb::handle("{\"id\":1,\"cmd\":\"app.open\",\"name\":\"home\"}");
+        run(200);
+        EXPECT(std::string(logbookApp.name()) == "Log defteri");
+        shot("tr-launcher");
+        for (const char* app : {"Log defteri", "Acil durum", "Ayarlar", "POTA/SOTA"}) {
+            usb::handle(std::string("{\"id\":1,\"cmd\":\"app.open\",\"name\":\"") + app + "\"}");
+            run(300);
+            EXPECT(std::string(current->name()) == app);
+            shot((std::string("tr-") + (app[0] == 'L' ? "logbook" : app[0] == 'A' && app[1] == 'c' ? "emergency" : app[0] == 'A' ? "settings" : "pota")).c_str());
+        }
+        config::set("lang", "en");
+        settings::apply(settings::LANG);
     }
 
     if (failures) fprintf(stderr, "%d simulator checks FAILED\n", failures);

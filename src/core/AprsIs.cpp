@@ -2,6 +2,7 @@
 #include <M5Cardputer.h>
 #include <WiFi.h>
 #include "Config.h"
+#include "Lang.h"
 #include "LoraAprs.h"
 #include "Net.h"
 #include "Station.h"
@@ -44,7 +45,7 @@ void connect() {
     std::string host = config::get("aprs_host", "rotate.aprs2.net");
     int port = atoi(config::get("aprs_port", "14580").c_str());
     if (!client.connect(host.c_str(), (uint16_t)port, 3000)) {
-        statusText = "Cannot reach " + host;
+        statusText = T("Cannot reach ") + host;
         return;
     }
     std::string login = "user " + myCall() + " pass " + std::to_string(aprs::passcode(myCall())) + " vers HamOS 0.3";
@@ -57,7 +58,7 @@ void connect() {
     sendLine(login);
     loggedIn = true;
     lastDataMs = millis();
-    statusText = "Connected to " + host;
+    statusText = T("Connected to ") + host;
     line.clear();
 }
 
@@ -74,7 +75,7 @@ void begin() {
     client.stop();
     loggedIn = attempted = beaconSent = false;
     isEnabled = config::get("aprs_on", "0") == "1";
-    statusText = !isEnabled ? (loraaprs::ready() ? "LoRa-APRS only (APRS-IS off)" : "APRS-IS is switched off in Settings")
+    statusText = !isEnabled ? (loraaprs::ready() ? T("LoRa-APRS only (APRS-IS off)") : T("APRS-IS is switched off in Settings"))
                  : myCall().empty() ? "Set your callsign in Settings first" : "Waiting for WiFi";
 }
 
@@ -168,7 +169,7 @@ void tick() {
     if (!isEnabled || myCall().empty()) return;
     uint32_t now = millis();
     if (!net::connected()) {
-        if (loggedIn) { client.stop(); loggedIn = false; statusText = "Waiting for WiFi"; }
+        if (loggedIn) { client.stop(); loggedIn = false; statusText = T("Waiting for WiFi"); }
         return;
     }
     if (!loggedIn) {
@@ -178,7 +179,7 @@ void tick() {
     if (!client.connected() || now - lastDataMs > 120000) {         // servers send a keep-alive every 20 s
         client.stop();
         loggedIn = false;
-        statusText = "Connection lost, retrying";
+        statusText = T("Connection lost, retrying");
         lastAttemptMs = now;
         return;
     }
@@ -217,15 +218,15 @@ std::string beaconPacket(const std::string& path) {
 bool sendBeacon(std::string& error) {
     if (!canSend()) { error = statusText; return false; }
     std::string packet = beaconPacket("TCPIP*");
-    if (packet.empty()) { error = "No position: set a grid or wait for GPS"; return false; }
+    if (packet.empty()) { error = T("No position: set a grid or wait for GPS"); return false; }
     sendPacket(packet.substr(packet.find(':') + 1));
     return true;
 }
 
 bool sendMessage(const std::string& to, const std::string& text, std::string& error) {
     if (!canSend()) { error = statusText; return false; }
-    if (to.empty() || to.size() > 9 || text.empty()) { error = "Type: CALLSIGN message"; return false; }
-    if (text.size() > 67) { error = "Message too long (67 characters)"; return false; }
+    if (to.empty() || to.size() > 9 || text.empty()) { error = T("Type: CALLSIGN message"); return false; }
+    if (text.size() > 67) { error = T("Message too long (67 characters)"); return false; }
     Message m;
     m.from = myCall();
     m.to = upper(to);

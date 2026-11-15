@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <string>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Config.h"
 #include "core/Ui.h"
 #include "lib/Morse.h"
@@ -11,7 +12,7 @@
 // played, you type what you heard; the level rises once you reach 90 %.
 class MorseApp : public App {
 public:
-    const char* name() const override { return "Morse"; }
+    const char* name() const override { return T("Morse"); }
     uint16_t color() const override { return 0xFFE0; }
 
     void onEnter() override {
@@ -100,8 +101,8 @@ public:
             if (!sent_.empty() && sent_.back() != ' ')
                 ui::textCentered(ui::BODY_Y + 66, morse::encode(sent_.back()), ui::C_OK, 3);
             else
-                ui::textCentered(ui::BODY_Y + 72, "Type to send", ui::C_DIM);
-            ui::footer("TAB trainer   DEL clear   ` back");
+                ui::textCentered(ui::BODY_Y + 72, T("Type to send"), ui::C_DIM);
+            ui::footer(T("TAB trainer   DEL clear   ` back"));
         } else {
             snprintf(line, sizeof(line), "TRAIN  level %d/%d", level_, kMaxLevel);
             ui::text(6, ui::BODY_Y + 6, line, ui::C_SEL, 1.5);
@@ -113,7 +114,7 @@ public:
             int pct = total_ ? (100 * correct_ / total_) : 0;
             snprintf(line, sizeof(line), "%d / %d correct  (%d%%)   %d WPM", correct_, total_, pct, wpm_);
             ui::text(6, ui::BODY_Y + 88, line, ui::C_DIM);
-            ui::footer("Type answer  ENTER replay  TAB send");
+            ui::footer(T("Type answer  ENTER replay  TAB send"));
         }
     }
 

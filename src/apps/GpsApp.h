@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdio>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Config.h"
 #include "core/Gps.h"
 #include "core/Ui.h"
@@ -23,7 +24,7 @@ public:
     void onKey(const KeyEvent& k) override {
         if (k.enter && gps::hasFix()) {
             config::set("grid", gps::grid());
-            status_ = config::save() ? "Saved as home grid" : "No SD card: not saved";
+            status_ = config::save() ? T("Saved as home grid") : T("No SD card: not saved");
             dirty = true;
         }
     }
@@ -33,17 +34,17 @@ public:
         const nmea::Fix& f = gps::fix();
         char line[48];
         if (!gps::present()) {
-            ui::textCentered(ui::BODY_Y + 28, "No GPS data", ui::C_WARN, 2);
-            ui::textCentered(ui::BODY_Y + 60, "Is the LoRa / GNSS cap attached?", ui::C_DIM);
-            ui::footer("` back");
+            ui::textCentered(ui::BODY_Y + 28, T("No GPS data"), ui::C_WARN, 2);
+            ui::textCentered(ui::BODY_Y + 60, T("Is the LoRa / GNSS cap attached?"), ui::C_DIM);
+            ui::footer(T("` back"));
             return;
         }
         if (!gps::hasFix()) {
-            ui::textCentered(ui::BODY_Y + 24, "Searching...", ui::C_WARN, 2);
+            ui::textCentered(ui::BODY_Y + 24, T("Searching..."), ui::C_WARN, 2);
             snprintf(line, sizeof(line), "%d satellites in use", f.satellites);
             ui::textCentered(ui::BODY_Y + 54, line, ui::C_DIM);
-            ui::textCentered(ui::BODY_Y + 70, "A first fix needs open sky, up to a few minutes", ui::C_DIM);
-            ui::footer("` back");
+            ui::textCentered(ui::BODY_Y + 70, T("A first fix needs open sky, up to a few minutes"), ui::C_DIM);
+            ui::footer(T("` back"));
             return;
         }
         ui::text(8, ui::BODY_Y + 6, gps::grid(), ui::C_OK, 3);
@@ -61,7 +62,7 @@ public:
             snprintf(line, sizeof(line), "GPS time %02d:%02d:%02d UTC", f.hour, f.minute, f.second);
             ui::text(8, ui::BODY_Y + 90, line, ui::C_DIM);
         }
-        ui::footer(status_.empty() ? "ENTER save as home grid   ` back" : status_.c_str());
+        ui::footer(status_.empty() ? T("ENTER save as home grid   ` back") : status_.c_str());
     }
 
 private:

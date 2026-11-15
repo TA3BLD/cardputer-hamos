@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/AprsIs.h"
 #include "core/Flags.h"
 #include "lib/Dxcc.h"
@@ -40,7 +41,7 @@ public:
         } else if (page_ == STATIONS) {
             if (k.ch == 'b' || k.ch == 'B') {
                 std::string error;
-                status_ = aprsis::sendBeacon(error) ? (loraaprs::ready() ? "Position sent on LoRa" : "Position sent to APRS-IS") : error;
+                status_ = aprsis::sendBeacon(error) ? (loraaprs::ready() ? T("Position sent on LoRa") : T("Position sent to APRS-IS")) : error;
             } else if (!ui::listNav(k, selected_, (int)aprsis::stations().size())) {
                 return;
             }
@@ -62,12 +63,12 @@ public:
         } else if ((k.ch == 'b' || k.ch == 'B') && !sending_) {
             std::string packet = aprsis::beaconPacket("WIDE1-1,WIDE2-1"), frame;
             if (packet.empty() || !ax25::encodeFrame(packet, frame)) {
-                status_ = "Needs a callsign and a position (grid or GPS)";
+                status_ = T("Needs a callsign and a position (grid or GPS)");
             } else {
                 audio::play(ax25::modulate(frame), ax25::SAMPLE_RATE);
         audio::markTransmit();      // stops the microphone
                 sending_ = true;
-                status_ = "Sending beacon through the speaker...";
+                status_ = T("Sending beacon through the speaker...");
             }
         } else {
             return;
@@ -125,9 +126,9 @@ private:
         });
         if (list.empty()) {
             ui::clearBody();
-            ui::textCentered(ui::BODY_Y + 30, "No stations yet", ui::C_DIM, 1.5);
+            ui::textCentered(ui::BODY_Y + 30, T("No stations yet"), ui::C_DIM, 1.5);
             ui::textCentered(ui::BODY_Y + 56, aprsis::status(), aprsis::online() ? ui::C_DIM : ui::C_WARN);
-            ui::footer("TAB messages   B send position   ` back");
+            ui::footer(T("TAB messages   B send position   ` back"));
             return;
         }
         std::vector<std::string> rows;
@@ -160,8 +161,8 @@ private:
         const auto& all = aprsis::messages();
         const int rows = ui::ROWS - 1;
         if (all.empty()) {
-            ui::textCentered(ui::BODY_Y + 28, "No messages", ui::C_DIM, 1.5);
-            ui::textCentered(ui::BODY_Y + 52, "Type: CALLSIGN your text, then ENTER", ui::C_DIM);
+            ui::textCentered(ui::BODY_Y + 28, T("No messages"), ui::C_DIM, 1.5);
+            ui::textCentered(ui::BODY_Y + 52, T("Type: CALLSIGN your text, then ENTER"), ui::C_DIM);
         }
         // Sent messages turn green once the other station has acknowledged them.
         std::vector<std::string> lines;
@@ -180,7 +181,7 @@ private:
         ui::fill(0, y, ui::W, ui::ROW_H, ui::C_FOOT);
         std::string shown = input_.value.size() > 36 ? input_.value.substr(input_.value.size() - 36) : input_.value;
         ui::textOn(4, y + 2, "> " + shown + "_", ui::C_TEXT, ui::C_FOOT);
-        std::string hint = !status_.empty() ? status_ : loraaprs::ready() ? "ENTER send on LoRa   TAB radio modem"
+        std::string hint = !status_.empty() ? status_ : loraaprs::ready() ? T("ENTER send on LoRa   TAB radio modem")
                            : aprsis::online() ? "ENTER send   TAB radio modem" : aprsis::status();
         if (hint.size() > 39) hint.resize(39);
         ui::footer(hint.c_str());
@@ -192,11 +193,11 @@ private:
         snprintf(line, sizeof(line), "1200 baud modem   %u ok  %u bad", (unsigned)modem_.frames, (unsigned)modem_.crcErrors);
         ui::text(6, ui::BODY_Y + 3, line, ui::C_SEL);
         if (!micOk_ && !sending_) {
-            ui::textCentered(ui::BODY_Y + 50, "Microphone not available", ui::C_WARN);
+            ui::textCentered(ui::BODY_Y + 50, T("Microphone not available"), ui::C_WARN);
         } else if (heard_.empty()) {
-            ui::textCentered(ui::BODY_Y + 38, "Listening on the microphone...", ui::C_DIM);
-            ui::textCentered(ui::BODY_Y + 54, "Tune a radio to 144.800 MHz and hold", ui::C_DIM);
-            ui::textCentered(ui::BODY_Y + 66, "the Cardputer next to its speaker", ui::C_DIM);
+            ui::textCentered(ui::BODY_Y + 38, T("Listening on the microphone..."), ui::C_DIM);
+            ui::textCentered(ui::BODY_Y + 54, T("Tune a radio to 144.800 MHz and hold"), ui::C_DIM);
+            ui::textCentered(ui::BODY_Y + 66, T("the Cardputer next to its speaker"), ui::C_DIM);
         } else {
             // Newest packets at the bottom, two lines each.
             const size_t width = 38;
@@ -210,7 +211,7 @@ private:
             for (size_t i = first; i < lines.size(); i++)
                 ui::text(6, ui::BODY_Y + 18 + (int)(i - first) * ui::ROW_H, lines[i], lines[i][0] == ' ' ? ui::C_DIM : ui::C_TEXT);
         }
-        ui::footer(!status_.empty() ? status_.c_str() : "B send beacon by speaker   TAB stations");
+        ui::footer(!status_.empty() ? status_.c_str() : T("B send beacon by speaker   TAB stations"));
     }
 
     int page_ = STATIONS, selected_ = 0, scroll_ = 0;

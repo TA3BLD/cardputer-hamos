@@ -4,13 +4,14 @@
 #include <utility>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Ui.h"
 #include "lib/RadioMath.h"
 
 // Radio calculators. Results update live while typing.
 class CalcApp : public App {
 public:
-    const char* name() const override { return "Calculator"; }
+    const char* name() const override { return T("Calculator"); }
     uint16_t color() const override { return 0x07FF; }
 
     void onEnter() override { open_ = false; }
@@ -54,7 +55,7 @@ public:
             std::vector<std::string> names;
             for (const Calc& c : calcs()) names.push_back(c.name);
             ui::list(names, selected_, scroll_);
-            ui::footer("ENTER open   ` back");
+            ui::footer(T("ENTER open   ` back"));
             return;
         }
         const Calc& c = calcs()[selected_];
@@ -72,7 +73,7 @@ public:
             ui::text(100, y, line.second, ui::C_OK, 1.5);
             y += 17;
         }
-        std::string hint = std::string(c.name) + (c.inputs > 1 ? "   TAB next   ` back" : "   ` back");
+        std::string hint = std::string(c.name) + (c.inputs > 1 ? T("   TAB next   ` back") : T("   ` back"));
         ui::footer(hint.c_str());
     }
 

@@ -1,13 +1,14 @@
 #pragma once
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Ui.h"
 
 // Home screen: a grid of app tiles. main.cpp reads `launch` after a key.
 class Launcher : public App {
 public:
     explicit Launcher(const std::vector<App*>& apps) : apps_(apps) {}
-    const char* name() const override { return "HamOS"; }
+    const char* name() const override { return T("HamOS"); }
 
     void onKey(const KeyEvent& k) override {
         int n = (int)apps_.size(), before = selected_;
@@ -36,9 +37,9 @@ public:
         }
         int rows = ((int)apps_.size() + COLS - 1) / COLS;
         bool above = scrollRow_ > 0, below = scrollRow_ + ROWS < rows;
-        ui::footer(above && below ? "Arrows select  ENTER open  more ^v"
-                   : below ? "Arrows select  ENTER open  more v"
-                   : above ? "Arrows select  ENTER open  more ^" : "Arrows select   ENTER open");
+        ui::footer(above && below ? T("Arrows select  ENTER open  more ^v")
+                   : below ? T("Arrows select  ENTER open  more v")
+                   : above ? T("Arrows select  ENTER open  more ^") : T("Arrows select   ENTER open"));
     }
 
     App* launch = nullptr;

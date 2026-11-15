@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Audio.h"
 #include "core/Config.h"
 #include "core/Ui.h"
@@ -110,7 +111,7 @@ public:
         ui::clearBody();
         drawWaterfall();
         drawText();
-        ui::footer(tx_ ? "` stop sending" : "Fn+arrows tune  TAB snap  ENTER send");
+        ui::footer(tx_ ? T("` stop sending") : T("Fn+arrows tune  TAB snap  ENTER send"));
     }
 
     // Simulator

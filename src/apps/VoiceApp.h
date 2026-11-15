@@ -13,7 +13,7 @@
 // answers (a calling-CQ loop) until any key.
 class VoiceApp : public App {
 public:
-    const char* name() const override { return "Voice keyer"; }
+    const char* name() const override { return T("Voice keyer"); }
     uint16_t color() const override { return 0xFA60; }
 
     void onExit() override {

@@ -13,7 +13,7 @@
 // the memories. A paddle on the Grove port works at the same time.
 class CwKeyerApp : public App {
 public:
-    const char* name() const override { return "CW keyer"; }
+    const char* name() const override { return T("CW keyer"); }
     uint16_t color() const override { return 0xFFE0; }
 
     void onEnter() override {
@@ -82,7 +82,7 @@ public:
         y += 2;
         ui::text(2, y, T("Call"), editCall_ ? ui::C_NOTICE : ui::C_DIM);
         ui::text(32, y, call_.value + (editCall_ ? "_" : ""), editCall_ ? ui::C_TEXT : ui::C_OK);
-        ui::text(120, y, "NR " + nrText(), ui::C_DIM);
+        ui::text(120, y, T("NR ") + nrText(), ui::C_DIM);
         y += 11;
         if (keyer::paddle() && !keyer::paddleText().empty()) {
             std::string p = keyer::paddleText();

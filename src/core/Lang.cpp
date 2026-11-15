@@ -41,7 +41,7 @@ const std::unordered_map<const char*, const char*, Hash, Eq>& table() {
 }  // namespace
 
 bool turkish() {
-    if (state < 0) state = config::get("lang", "en") == "tr" ? 1 : 0;
+    if (state < 0) state = config::get("lang", "tr") == "tr" ? 1 : 0;
     return state == 1;
 }
 

@@ -14,7 +14,7 @@
 // Looks up a callsign in HamQTH or QRZ.com: name, town, locator, distance.
 class CallbookApp : public App {
 public:
-    const char* name() const override { return "Callbook"; }
+    const char* name() const override { return T("Callbook"); }
     uint16_t color() const override { return 0x867F; }
 
     void onEnter() override {

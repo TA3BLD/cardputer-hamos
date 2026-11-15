@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdio>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Station.h"
 #include "core/Ui.h"
 #include "lib/Maidenhead.h"
@@ -8,7 +9,7 @@
 // Distance and beam heading between two Maidenhead locators.
 class LocatorApp : public App {
 public:
-    const char* name() const override { return "Locator"; }
+    const char* name() const override { return T("Locator"); }
     uint16_t color() const override { return 0x07E0; }
 
     void onEnter() override {
@@ -43,9 +44,9 @@ public:
             snprintf(line, sizeof(line), "TO: %.3f, %.3f", lat2, lon2);
             ui::text(8, 84, line, ui::C_DIM);
         } else {
-            ui::text(8, 62, "Enter two locators (KM38 or KM38nk)", ui::C_DIM);
+            ui::text(8, 62, T("Enter two locators (KM38 or KM38nk)"), ui::C_DIM);
         }
-        ui::footer("TAB switch field   ` back");
+        ui::footer(T("TAB switch field   ` back"));
     }
 
 private:

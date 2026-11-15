@@ -13,7 +13,7 @@
 // drawn on the Map as coloured dots and saved to /HamOS/rangetest.csv.
 class RangeApp : public App {
 public:
-    const char* name() const override { return "Range test"; }
+    const char* name() const override { return T("Range test"); }
     uint16_t color() const override { return 0x07FF; }
 
     void onTick(uint32_t now) override {

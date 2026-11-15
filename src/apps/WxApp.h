@@ -11,7 +11,7 @@
 // Weather station (BME280 on the Grove port) and the LoRa-APRS digipeater.
 class WxApp : public App {
 public:
-    const char* name() const override { return "WX / Digi"; }
+    const char* name() const override { return T("WX / Digi"); }
     uint16_t color() const override { return 0x5D1F; }
 
     void onTick(uint32_t now) override {

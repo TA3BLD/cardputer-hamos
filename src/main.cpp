@@ -242,10 +242,11 @@ void setup() {
     M5Cardputer.begin(cfg, true);
     cap::begin();           // before the SD card: parks the radio on the shared SPI bus
     ui::begin();
-    ui::textCentered(50, "HamOS", ui::C_TEXT, 3);
+    ui::textCentered(50, T("HamOS"), ui::C_TEXT, 3);
 
     storage::begin();
     config::load();
+    lang::reload();         // the language setting is known now
     net::begin();
     gps::begin();
     mesh::begin();
@@ -264,7 +265,7 @@ void setup() {
     usb::begin(usbHost);
 
     std::string call = config::get("callsign");
-    if (!call.empty()) ui::textCentered(85, "73 de " + call, ui::C_OK, 1.5);
+    if (!call.empty()) ui::textCentered(85, T("73 de ") + call, ui::C_OK, 1.5);
     delay(800);
     current->onEnter();
 }
@@ -332,7 +333,7 @@ void loop() {
     if (idMinutes > 0 && now - lastIdMs > (uint32_t)idMinutes * 60000) {
         lastIdMs = now;
         idNoticeMs = now ? now : 1;
-        ui::setNotice("ID: give your callsign");
+        ui::setNotice(T("ID: give your callsign"));
         M5Cardputer.Speaker.tone(1000, 150);
         lastStatusMs = 0;
     }

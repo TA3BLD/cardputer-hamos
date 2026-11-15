@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <ctime>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Config.h"
 #include "core/Net.h"
 #include "core/Station.h"
@@ -15,7 +16,7 @@
 // hamqsl.com (needs WiFi), plus sunrise/sunset for your location (offline).
 class SolarApp : public App {
 public:
-    const char* name() const override { return "Solar"; }
+    const char* name() const override { return T("Solar"); }
     uint16_t color() const override { return 0xFD20; }
 
     void onEnter() override {
@@ -40,8 +41,8 @@ public:
     void draw() override {
         ui::clearBody();
         if (phase_ == 1) {
-            ui::textCentered(ui::BODY_Y + 40, "Loading solar data...", ui::C_DIM, 1.5);
-            ui::footer("hamqsl.com");
+            ui::textCentered(ui::BODY_Y + 40, T("Loading solar data..."), ui::C_DIM, 1.5);
+            ui::footer(T("hamqsl.com"));
             phase_ = 2;
             return;
         }
@@ -50,16 +51,16 @@ public:
             snprintf(line, sizeof(line), "SFI %s  SN %s  A %s  K %s  %s", data_.flux.c_str(), data_.sunspots.c_str(),
                      data_.aIndex.c_str(), data_.kIndex.c_str(), data_.xray.c_str());
             ui::text(6, ui::BODY_Y + 4, line, ui::C_TEXT);
-            ui::text(6, ui::BODY_Y + 20, "Band", ui::C_DIM);
-            ui::text(96, ui::BODY_Y + 20, "Day", ui::C_DIM);
-            ui::text(166, ui::BODY_Y + 20, "Night", ui::C_DIM);
+            ui::text(6, ui::BODY_Y + 20, T("Band"), ui::C_DIM);
+            ui::text(96, ui::BODY_Y + 20, T("Day"), ui::C_DIM);
+            ui::text(166, ui::BODY_Y + 20, T("Night"), ui::C_DIM);
             for (int r = 0; r < 4; r++) {
                 int y = ui::BODY_Y + 32 + r * 14;
                 ui::text(6, y, solar::bandName(r), ui::C_TEXT, 1.5);
                 for (int c = 0; c < 2; c++) ui::text(96 + c * 70, y, data_.cond[r][c], condColor(data_.cond[r][c]), 1.5);
             }
         } else {
-            ui::textCentered(ui::BODY_Y + 30, net::connected() ? error_ : "No WiFi: solar data unavailable", ui::C_WARN);
+            ui::textCentered(ui::BODY_Y + 30, net::connected() ? error_ : T("No WiFi: solar data unavailable"), ui::C_WARN);
         }
 
         double lat, lon;
@@ -74,9 +75,9 @@ public:
             else snprintf(line, sizeof(line), "Sun does not rise or set today");
             ui::text(6, ui::BODY_Y + 94, line, 0xFFE0);
         } else {
-            ui::text(6, ui::BODY_Y + 94, "Sunrise/sunset: needs grid and time", ui::C_DIM);
+            ui::text(6, ui::BODY_Y + 94, T("Sunrise/sunset: needs grid and time"), ui::C_DIM);
         }
-        ui::footer(net::connected() ? "R refresh   ` back" : "` back");
+        ui::footer(net::connected() ? T("R refresh   ` back") : T("` back"));
     }
 
 private:
@@ -98,7 +99,7 @@ private:
         HTTPClient http;
         http.setTimeout(8000);
         if (!http.begin(client, "https://www.hamqsl.com/solarxml.php")) {
-            error_ = "Could not start the request";
+            error_ = T("Could not start the request");
             return;
         }
         int code = http.GET();
@@ -108,16 +109,16 @@ private:
                 data_ = d;
                 fetchedMs_ = millis();
             } else {
-                error_ = "Unexpected answer from hamqsl.com";
+                error_ = T("Unexpected answer from hamqsl.com");
             }
         } else {
-            error_ = "hamqsl.com request failed (" + std::to_string(code) + ")";
+            error_ = T("hamqsl.com request failed (") + std::to_string(code) + ")";
         }
         http.end();
     }
 
     solar::Data data_;
-    std::string error_ = "No data yet. Press R.";
+    std::string error_ = T("No data yet. Press R.");
     uint32_t fetchedMs_ = 0;
     int phase_ = 0;         // 1: show "Loading", 2: fetch on the next tick
 };

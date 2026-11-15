@@ -2,12 +2,13 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Ui.h"
 
 // Quick reference tables. TAB cycles pages, arrows scroll.
 class ReferenceApp : public App {
 public:
-    const char* name() const override { return "Reference"; }
+    const char* name() const override { return T("Reference"); }
     uint16_t color() const override { return 0xA254; }
 
     void onKey(const KeyEvent& k) override {
@@ -21,7 +22,7 @@ public:
     void draw() override {
         const Page& p = pages()[page_];
         ui::list(p.lines, selected_, scroll_);
-        std::string hint = std::string("[") + p.title + "]  TAB next page   ` back";
+        std::string hint = std::string("[") + p.title + T("]  TAB next page   ` back");
         ui::footer(hint.c_str());
     }
 

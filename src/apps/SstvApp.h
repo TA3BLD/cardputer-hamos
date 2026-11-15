@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Audio.h"
 #include "core/Config.h"
 #include "core/Net.h"
@@ -47,7 +48,7 @@ public:
         if (encoder_) {                     // stop sending
             audio::stopPlaying();
             encoder_.reset();
-            status_ = "Stopped";
+            status_ = T("Stopped");
             startReceive();
             page_ = SEND;
             dirty = true;
@@ -68,7 +69,7 @@ public:
                 const sstv::Mode* all = sstv::modes(n);
                 forced_ = (forced_ + 1) % ((int)n + 1);
                 decoder_->force(forced_ ? &all[forced_ - 1] : nullptr);
-                status_ = forced_ ? std::string("Waiting for sync: ") + all[forced_ - 1].name : "Automatic (VIS)";
+                status_ = forced_ ? std::string(T("Waiting for sync: ")) + all[forced_ - 1].name : T("Automatic (VIS)");
             } else if (k.ch == 'c' || k.ch == 'C') {
                 clearPicture();
             } else {
@@ -99,7 +100,7 @@ public:
         if (encoder_) {
             if (!audio::playing()) {
                 encoder_.reset();
-                status_ = "Sent";
+                status_ = T("Sent");
                 startReceive();
                 dirty = true;
             } else if (now - lastDrawMs_ > 1000) {
@@ -182,7 +183,7 @@ private:
         storage::appendFile(path_.c_str(), row);
         if (y == m.height - 1) {
             savedPath_ = path_;
-            status_ = "Saved " + path_.substr(path_.rfind('/') + 1);
+            status_ = T("Saved ") + path_.substr(path_.rfind('/') + 1);
         }
         // Scaled down onto the screen: each screen row once, from the source rows that map to it.
         int row0 = y * kPicH / m.height;
@@ -209,7 +210,7 @@ private:
         ui::frame(0, ui::BODY_Y, kPicW, kPicH, ui::C_FOOT);
         if (!savedPath_.empty()) showFile(savedPath_, 0, ui::BODY_Y, kPicW, kPicH);
         drawReceiveInfo();
-        ui::footer(forced_ ? "M mode (manual)  C clear  TAB send" : "M manual mode  C clear  TAB send");
+        ui::footer(forced_ ? T("M mode (manual)  C clear  TAB send") : T("M manual mode  C clear  TAB send"));
     }
 
     void drawReceiveInfo() {
@@ -217,7 +218,7 @@ private:
         ui::fill(x - 2, ui::BODY_Y, ui::W - x + 2, kPicH, ui::C_BG);
         const sstv::Mode* m = decoder_ ? decoder_->mode() : nullptr;
         bool busy = decoder_ && decoder_->receiving();
-        ui::text(x, ui::BODY_Y + 2, "RECEIVE", ui::C_SEL);
+        ui::text(x, ui::BODY_Y + 2, T("RECEIVE"), ui::C_SEL);
         ui::text(x, ui::BODY_Y + 14, busy && m ? m->name : "listening", busy ? ui::C_OK : ui::C_DIM);
         if (busy && m) {
             char buf[24];
@@ -262,9 +263,9 @@ private:
     void drawGallery() {
         ui::clearBody();
         if (files_.empty()) {
-            ui::textCentered(ui::BODY_Y + 30, "No pictures", ui::C_WARN, 1.5);
-            ui::textCentered(ui::BODY_Y + 52, "Put 24-bit BMP files in /HamOS/sstv", ui::C_DIM);
-            ui::footer("TAB receive   ` back");
+            ui::textCentered(ui::BODY_Y + 30, T("No pictures"), ui::C_WARN, 1.5);
+            ui::textCentered(ui::BODY_Y + 52, T("Put 24-bit BMP files in /HamOS/sstv"), ui::C_DIM);
+            ui::footer(T("TAB receive   ` back"));
             return;
         }
         // File list and settings on the left, preview on the right.
@@ -282,11 +283,11 @@ private:
         char line[48];
         snprintf(line, sizeof(line), "%s %.0fs", txMode_->name, sstv::transmissionMs(*txMode_, true) / 1000);
         ui::text(3, top + rows * ui::ROW_H + 6, line, ui::C_OK);
-        ui::text(3, top + rows * ui::ROW_H + 20, overlay_ ? "with callsign" : "no callsign", ui::C_DIM);
+        ui::text(3, top + rows * ui::ROW_H + 20, overlay_ ? T("with callsign") : T("no callsign"), ui::C_DIM);
         int px = listW + 4, pw = ui::W - px, ph = pw * 256 / 320;
         ui::frame(px, top, pw, ph, ui::C_FOOT);
         showFile(std::string(kFolder) + "/" + files_[(size_t)selected_], px, top, pw, ph);
-        ui::footer("ENTER send  M mode  O call  TAB rx");
+        ui::footer(T("ENTER send  M mode  O call  TAB rx"));
         previewDrawn_ = true;
     }
 
@@ -295,7 +296,7 @@ private:
         uint8_t head[54];
         bmp::Info info;
         if (storage::readAt(path.c_str(), 0, head, 54) != 54 || !bmp::parse(head, 54, info)) {
-            ui::text(x0 + 4, y0 + h / 2 - 4, "not a 24-bit BMP", ui::C_WARN);
+            ui::text(x0 + 4, y0 + h / 2 - 4, T("not a 24-bit BMP"), ui::C_WARN);
             return;
         }
         std::vector<uint8_t> row(info.rowBytes);
@@ -317,7 +318,7 @@ private:
         std::string path = std::string(kFolder) + "/" + files_[(size_t)selected_];
         uint8_t head[54];
         if (storage::readAt(path.c_str(), 0, head, 54) != 54 || !bmp::parse(head, 54, txInfo_)) {
-            status_ = "Not a 24-bit BMP";
+            status_ = T("Not a 24-bit BMP");
             return;
         }
         txPath_ = path;
@@ -371,7 +372,7 @@ private:
 
     void drawSending() {
         ui::clearBody();
-        ui::text(6, ui::BODY_Y + 6, std::string("SENDING  ") + txMode_->name, ui::C_ERR, 1.5);
+        ui::text(6, ui::BODY_Y + 6, std::string(T("SENDING  ")) + txMode_->name, ui::C_ERR, 1.5);
         ui::text(6, ui::BODY_Y + 26, txPath_.substr(txPath_.rfind('/') + 1), ui::C_TEXT);
         float p = encoder_ ? encoder_->progress() : 1;
         ui::fill(6, ui::BODY_Y + 44, ui::W - 12, 8, ui::C_FOOT);
@@ -381,8 +382,8 @@ private:
         snprintf(buf, sizeof(buf), "line %d of %d   %.0f s left", encoder_ ? encoder_->currentLine() : 0, txMode_->height,
                  total * (1 - p));
         ui::text(6, ui::BODY_Y + 58, buf, ui::C_DIM);
-        ui::text(6, ui::BODY_Y + 76, "Headphone jack to the radio, or VOX", ui::C_DIM);
-        ui::footer("` stop sending");
+        ui::text(6, ui::BODY_Y + 76, T("Headphone jack to the radio, or VOX"), ui::C_DIM);
+        ui::footer(T("` stop sending"));
     }
 
     std::unique_ptr<sstv::Decoder> decoder_;

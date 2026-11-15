@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/PskReporter.h"
 #include "core/Audio.h"
 #include "core/Config.h"
@@ -39,7 +40,7 @@ public:
         decoder_.reset(new ft8::Decoder());
         if (!decoder_->begin(osr) && !(osr == 2 && decoder_->begin(1))) {
             decoder_.reset();
-            status_ = "Not enough memory for the decoder";
+            status_ = T("Not enough memory for the decoder");
         }
         txHz_ = (float)atof(config::get("ft8_tx_hz", "1500").c_str());
         if (txHz_ < 300 || txHz_ > 2700) txHz_ = 1500;
@@ -74,12 +75,12 @@ public:
             txEnabled_ = true;
             status_.clear();
         } else if (k.ch == 't' || k.ch == 'T') {
-            if (!txEnabled_ && qso_.message().empty()) { status_ = "Nothing to send: ENTER on a CQ, or C"; }
+            if (!txEnabled_ && qso_.message().empty()) { status_ = T("Nothing to send: ENTER on a CQ, or C"); }
             else txEnabled_ = !txEnabled_;
         } else if (k.ch == 'h' || k.ch == 'H') {
             txEnabled_ = false;
             qso_.stop();
-            status_ = "Halted";
+            status_ = T("Halted");
         } else {
             return;
         }
@@ -136,13 +137,13 @@ public:
         ui::clearBody();
         if (!decoder_) {
             ui::textCentered(ui::BODY_Y + 40, status_, ui::C_WARN);
-            ui::footer("` back");
+            ui::footer(T("` back"));
             return;
         }
         if (!net::timeValid()) {
-            ui::textCentered(ui::BODY_Y + 30, "Waiting for the time", ui::C_WARN, 1.5);
-            ui::textCentered(ui::BODY_Y + 54, "FT8 needs it to within 0.5 s: WiFi or GPS", ui::C_DIM);
-            ui::footer("` back");
+            ui::textCentered(ui::BODY_Y + 30, T("Waiting for the time"), ui::C_WARN, 1.5);
+            ui::textCentered(ui::BODY_Y + 54, T("FT8 needs it to within 0.5 s: WiFi or GPS"), ui::C_DIM);
+            ui::footer(T("` back"));
             return;
         }
         // Top line: period progress, receive / transmit, dial frequency.
@@ -167,8 +168,8 @@ public:
         }
         if (follow_ && !rows.empty()) selected_ = (int)rows.size() - 1;
         if (rows.empty()) {
-            ui::textCentered(ui::BODY_Y + 46, rx_ || decoding_ ? "Listening..." : "Next period starts soon", ui::C_DIM);
-            ui::textCentered(ui::BODY_Y + 62, "Microphone next to the receiver's speaker", ui::C_DIM);
+            ui::textCentered(ui::BODY_Y + 46, rx_ || decoding_ ? T("Listening...") : T("Next period starts soon"), ui::C_DIM);
+            ui::textCentered(ui::BODY_Y + 62, T("Microphone next to the receiver's speaker"), ui::C_DIM);
         } else {
             ui::list(rows, selected_, scroll_, &colors, ui::BODY_Y + 20, 6);
             for (int i = 0; i < 6 && scroll_ + i < (int)lines_.size(); i++)
@@ -180,9 +181,9 @@ public:
         std::string next = qso_.message();
         if (!status_.empty()) ui::text(6, ui::BODY_Y + 95, status_, ui::C_WARN);
         else if (!next.empty())
-            ui::text(6, ui::BODY_Y + 95, std::string(txEnabled_ ? "TX " : "off ") + (txParity_ ? "odd: " : "even: ") + next,
+            ui::text(6, ui::BODY_Y + 95, std::string(txEnabled_ ? T("TX ") : T("off ")) + (txParity_ ? T("odd: ") : T("even: ")) + next,
                      txEnabled_ ? ui::C_NOTICE : ui::C_DIM);
-        ui::footer(txEnabled_ ? "H halt   T pause   ENTER reply" : "ENTER reply  C CQ  T TX on  H halt");
+        ui::footer(txEnabled_ ? T("H halt   T pause   ENTER reply") : T("ENTER reply  C CQ  T TX on  H halt"));
     }
 
     // Simulator: select the newest decode that starts with `text`.
@@ -210,10 +211,10 @@ private:
     std::string dialMhz() const { return rig::connected() ? rig::freqMhz() : config::get("ft8_dial", "14.074"); }
 
     bool canTransmit() {
-        if (qso_.myCall.empty()) { status_ = "Set your callsign in Settings first"; return false; }
+        if (qso_.myCall.empty()) { status_ = T("Set your callsign in Settings first"); return false; }
         uint32_t dummy;
-        if (!ft8::packCall(qso_.myCall, dummy)) { status_ = "Compound callsigns cannot transmit here"; return false; }
-        if (qso_.myGrid.size() < 4) { status_ = "Set your grid in Settings first"; return false; }
+        if (!ft8::packCall(qso_.myCall, dummy)) { status_ = T("Compound callsigns cannot transmit here"); return false; }
+        if (qso_.myGrid.size() < 4) { status_ = T("Set your grid in Settings first"); return false; }
         return true;
     }
 
@@ -235,7 +236,7 @@ private:
         std::string text = qso_.message();
         uint8_t payload[10], tones[ft8::kSymbols];
         if (!ft8::pack(text, payload)) {
-            status_ = "Cannot encode: " + text;
+            status_ = T("Cannot encode: ") + text;
             txEnabled_ = false;
             return;
         }
@@ -254,12 +255,12 @@ private:
         qso_.transmitted();
         if (qso_.step == ft8::Qso::DONE) {
             txEnabled_ = false;
-            status_ = "Contact complete";
+            status_ = T("Contact complete");
         }
         int limit = qso_.step == ft8::Qso::CQ ? 10 : 6;
         if (qso_.unanswered >= limit) {
             txEnabled_ = false;
-            status_ = "No answer: TX off (T to go on)";
+            status_ = T("No answer: TX off (T to go on)");
         }
     }
 
@@ -346,7 +347,7 @@ private:
         strftime(buf, sizeof(buf), "%H%M", &tmv);
         q.time = buf;
         logbook::add(q);
-        status_ = "Logged " + q.call;
+        status_ = T("Logged ") + q.call;
     }
 
     void addLine(const Line& l) {

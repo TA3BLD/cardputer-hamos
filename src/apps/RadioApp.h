@@ -14,7 +14,7 @@
 // 1 kHz, left/right 100 Hz; Fn+arrows 10x), band presets B, mode M, PTT test P.
 class RadioApp : public App {
 public:
-    const char* name() const override { return "Radio"; }
+    const char* name() const override { return T("Radio"); }
     uint16_t color() const override { return 0xC618; }
 
     void onTick(uint32_t now) override {

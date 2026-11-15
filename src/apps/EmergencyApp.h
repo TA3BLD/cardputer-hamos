@@ -146,12 +146,12 @@ private:
             ui::footer(T("ENTER start SOS  ` cancel"));
             return;
         }
-        ui::fill(10, y + 2, 100, 40, ui::C_ERR);
-        overCentered(60, y + 11, "SOS", 3);
-        ui::text(118, y + 4, T("S: send SOS"), ui::C_TEXT);
-        ui::text(118, y + 16, T("N: with a note"), ui::C_DIM);
-        ui::text(118, y + 28, T("5 s to cancel"), ui::C_DIM);
-        y += 48;
+        ui::fill(10, y + 1, 100, 34, ui::C_ERR);
+        overCentered(60, y + 7, "SOS", 3);
+        ui::text(118, y + 2, T("S: send SOS"), ui::C_TEXT);
+        ui::text(118, y + 13, T("N: with a note"), ui::C_DIM);
+        ui::text(118, y + 24, T("5 s to cancel"), ui::C_DIM);
+        y += 38;
         std::string pos = station::grid();
         ui::text(4, y, std::string(T("Position")) + ": " + (pos.empty() ? T("unknown!") : pos), pos.empty() ? ui::C_ERR : ui::C_TEXT);
         y += 11;
@@ -162,9 +162,10 @@ private:
         if (left >= 0) snprintf(b, sizeof(b), "T %s %d:%02d", T("timer"), left / 60, left % 60);
         else snprintf(b, sizeof(b), "T %s", T("timer off"));
         ui::text(4, y, b, emergency::timerWarning() ? ui::C_ERR : left >= 0 ? ui::C_WARN : ui::C_DIM);
-        ui::text(96, y, std::string("A ") + T("siren"), emergency::siren() ? ui::C_ERR : ui::C_DIM);
-        ui::text(146, y, std::string("L ") + T("light"), emergency::strobe() ? ui::C_NOTICE : ui::C_DIM);
-        ui::text(196, y, std::string("P ") + T("save"), emergency::saver() ? ui::C_OK : ui::C_DIM);
+        y += 11;
+        ui::text(4, y, std::string("A ") + T("siren"), emergency::siren() ? ui::C_ERR : ui::C_DIM);
+        ui::text(70, y, std::string("L ") + T("light"), emergency::strobe() ? ui::C_NOTICE : ui::C_DIM);
+        ui::text(136, y, std::string("P ") + T("save"), emergency::saver() ? ui::C_OK : ui::C_DIM);
         ui::footer(emergency::timerWarning() ? T("PRESS ANY KEY or SOS goes out!") : T("TAB: messages, alerts, info"));
     }
 

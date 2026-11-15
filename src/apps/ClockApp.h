@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <ctime>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Config.h"
 #include "core/Net.h"
 #include "core/Ui.h"
@@ -10,7 +11,7 @@
 // UTC clock (NTP-synced) with local time from the utc_offset setting.
 class ClockApp : public App {
 public:
-    const char* name() const override { return "UTC Clock"; }
+    const char* name() const override { return T("UTC Clock"); }
     uint16_t color() const override { return 0xFD20; }
 
     void onTick(uint32_t nowMs) override {
@@ -23,8 +24,8 @@ public:
     void draw() override {
         ui::clearBody();
         if (!net::timeValid()) {
-            ui::textCentered(45, "No time yet", ui::C_WARN, 2);
-            ui::textCentered(75, net::configured() ? "Waiting for WiFi / NTP..." : "Set WiFi in Settings", ui::C_DIM);
+            ui::textCentered(45, T("No time yet"), ui::C_WARN, 2);
+            ui::textCentered(75, net::configured() ? T("Waiting for WiFi / NTP...") : T("Set WiFi in Settings"), ui::C_DIM);
         } else {
             time_t now = time(nullptr);
             struct tm t;
@@ -43,7 +44,7 @@ public:
             snprintf(buf, sizeof(buf), "Local %s (UTC%+g)", hhmm, offset);
             ui::textCentered(90, buf, ui::C_OK, 1.5);
         }
-        ui::footer("` back");
+        ui::footer(T("` back"));
     }
 
 private:

@@ -3,6 +3,7 @@
 #include <esp_random.h>
 #include <deque>
 #include "Config.h"
+#include "Lang.h"
 #include "Gps.h"
 #include "Lora.h"
 #include "Storage.h"
@@ -255,13 +256,13 @@ void begin() {
 
     region = findRegion(config::get("mesh_region", "EU_868"));
     preset = findPreset(config::get("mesh_preset", "LongFast"));
-    if (!region) { statusText = "Unknown mesh_region (EU_868, EU_433, US)"; return; }
-    if (!preset) { statusText = "Unknown mesh_preset (e.g. LongFast)"; return; }
+    if (!region) { statusText = T("Unknown mesh_region (EU_868, EU_433, US)"); return; }
+    if (!preset) { statusText = T("Unknown mesh_preset (e.g. LongFast)"); return; }
     channelName = config::get("mesh_channel", preset->name);
 
     uint8_t key[32];
     keyLen = expandPsk(config::get("mesh_psk", "AQ=="), key);
-    if (keyLen < 0) { statusText = "mesh_psk is not a valid key"; return; }
+    if (keyLen < 0) { statusText = T("mesh_psk is not a valid key"); return; }
     if (keyLen) aes.setKey(key, keyLen);
     chanHash = channelHash(channelName, key, (size_t)keyLen);
 
@@ -360,13 +361,13 @@ uint32_t sendPort(int portnum, const std::string& payload, uint32_t to) {
 
 bool sendTextTo(const std::string& text, uint32_t to, std::string& error, uint32_t* packetId) {
     if (!isReady) { error = statusText; return false; }
-    if (text.empty()) { error = "Nothing to send"; return false; }
-    if (text.size() > MAX_TEXT) { error = "Message too long"; return false; }
+    if (text.empty()) { error = T("Nothing to send"); return false; }
+    if (text.size() > MAX_TEXT) { error = T("Message too long"); return false; }
     Data d;
     d.portnum = PORT_TEXT;
     d.payload = text;
     uint32_t id = enqueue(d, to, to != BROADCAST);
-    if (!id) { error = "Send queue is full"; return false; }
+    if (!id) { error = T("Send queue is full"); return false; }
     if (packetId) *packetId = id;
     Message m;
     m.from = nodeId;

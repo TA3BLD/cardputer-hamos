@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Config.h"
 #include "core/Flags.h"
 #include "core/Log.h"
@@ -21,7 +22,7 @@
 // log. Type a letter to jump to the countries starting with it.
 class CountryApp : public App {
 public:
-    const char* name() const override { return "Countries"; }
+    const char* name() const override { return T("Countries"); }
     uint16_t color() const override { return 0xFB2C; }
 
     void onEnter() override {
@@ -79,7 +80,7 @@ private:
         ui::list(rows, selected_, scroll_, &colors);
         for (int r = 0; r < ui::ROWS && scroll_ + r < (int)order_.size(); r++)
             flags::drawSmall(order_[(size_t)(scroll_ + r)]->iso, 6, ui::BODY_Y + r * ui::ROW_H + 1);
-        ui::footer("ENTER details  A-Z jump  green=logged");
+        ui::footer(T("ENTER details  A-Z jump  green=logged"));
     }
 
     static std::string hhmm(double hours) {
@@ -114,7 +115,7 @@ private:
             snprintf(line, sizeof(line), "Long  %5.0f km  %03.0f deg", 40030.0 - km, std::fmod(bearing + 180.0, 360.0));
             ui::text(6, y + 24, line, ui::C_DIM);
         } else {
-            ui::text(6, y + 12, "Set your grid for headings", ui::C_DIM);
+            ui::text(6, y + 12, T("Set your grid for headings"), ui::C_DIM);
         }
         if (net::timeValid()) {
             time_t now = time(nullptr);
@@ -126,7 +127,7 @@ private:
             ui::text(6, y + 36, line, ui::C_NOTICE);
         }
         bool worked = logbook::workedEntity(&e);
-        ui::text(6, y + 50, worked ? "In your log" : "Not in your log yet", worked ? ui::C_OK : ui::C_WARN);
+        ui::text(6, y + 50, worked ? T("In your log") : T("Not in your log yet"), worked ? ui::C_OK : ui::C_WARN);
 
         // Compass with the beam heading.
         if (here) {
@@ -138,7 +139,7 @@ private:
             ui::line(cx, cy, tx, ty, ui::C_OK);
             ui::circle(tx, ty, 2, ui::C_OK, true);
         }
-        ui::footer("` back to the list");
+        ui::footer(T("` back to the list"));
     }
 
     std::vector<const dxcc::Entity*> order_;

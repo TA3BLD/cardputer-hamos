@@ -11,7 +11,7 @@
 // Cabrillo file for contests.
 class LogSyncApp : public App {
 public:
-    const char* name() const override { return "Log upload"; }
+    const char* name() const override { return T("Log upload"); }
     uint16_t color() const override { return 0x5AFF; }
 
     void onEnter() override {

@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Station.h"
 #include "core/Storage.h"
 #include "core/Ui.h"
@@ -17,7 +18,7 @@
 // Lines starting with # are ignored. See docs/repeaters-example.csv.
 class RepeaterApp : public App {
 public:
-    const char* name() const override { return "Repeaters"; }
+    const char* name() const override { return T("Repeaters"); }
     uint16_t color() const override { return 0x9E7F; }
 
     void onEnter() override {
@@ -32,11 +33,11 @@ public:
     void draw() override {
         if (list_.empty()) {
             ui::clearBody();
-            ui::textCentered(ui::BODY_Y + 16, "No repeater list", ui::C_WARN, 1.5);
-            ui::textCentered(ui::BODY_Y + 42, "Put repeaters.csv in /HamOS on the SD card:", ui::C_DIM);
-            ui::textCentered(ui::BODY_Y + 58, "name,MHz,shift,tone,lat,lon,note", ui::C_TEXT);
-            ui::textCentered(ui::BODY_Y + 74, "MYRPT,145.6000,-0.6,88.5,38.42,27.14,Town", ui::C_DIM);
-            ui::footer("` back");
+            ui::textCentered(ui::BODY_Y + 16, T("No repeater list"), ui::C_WARN, 1.5);
+            ui::textCentered(ui::BODY_Y + 42, T("Put repeaters.csv in /HamOS on the SD card:"), ui::C_DIM);
+            ui::textCentered(ui::BODY_Y + 58, T("name,MHz,shift,tone,lat,lon,note"), ui::C_TEXT);
+            ui::textCentered(ui::BODY_Y + 74, T("MYRPT,145.6000,-0.6,88.5,38.42,27.14,Town"), ui::C_DIM);
+            ui::footer(T("` back"));
             return;
         }
         std::vector<std::string> rows;
@@ -55,7 +56,7 @@ public:
             hint = line + hint;
         }
         if (hint.size() > 39) hint.resize(39);
-        ui::footer(hint.empty() ? "` back" : hint.c_str());
+        ui::footer(hint.empty() ? T("` back") : hint.c_str());
     }
 
 private:

@@ -3,6 +3,7 @@
 #include <deque>
 #include "AprsIs.h"
 #include "Config.h"
+#include "Lang.h"
 #include "Lora.h"
 #include "lib/Aprs.h"
 
@@ -57,7 +58,7 @@ void begin() {
     isReady = false;
     queue.clear();
     isEnabled = config::get("lora_mode", "mesh") == "aprs";
-    if (!isEnabled) { statusText = "LoRa radio is in Meshtastic mode"; return; }
+    if (!isEnabled) { statusText = T("LoRa radio is in Meshtastic mode"); return; }
     lora::Settings s;
     s.freqMhz = atof(config::get("lora_aprs_freq", "433.775").c_str());
     s.bwKhz = 125;

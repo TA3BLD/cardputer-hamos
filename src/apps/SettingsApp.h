@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/AprsIs.h"
 #include "core/Config.h"
 #include "core/Settings.h"
@@ -16,7 +17,7 @@
 // Edits the values in /HamOS/config.txt.
 class SettingsApp : public App {
 public:
-    const char* name() const override { return "Settings"; }
+    const char* name() const override { return T("Settings"); }
     uint16_t color() const override { return 0x8410; }
 
     void onEnter() override {
@@ -37,7 +38,7 @@ public:
             if (k.enter) {
                 if (input_.value.empty()) config::erase(f.key);     // empty = back to the default
                 else config::set(f.key, input_.value);
-                status_ = config::save() ? "Saved" : "No SD card: not saved";
+                status_ = config::save() ? T("Saved") : T("No SD card: not saved");
                 settings::apply(f.apply);
                 editing_ = false;
             } else if (!input_.handle(k)) {
@@ -60,18 +61,18 @@ public:
     void draw() override {
         if (editing_) {
             ui::clearBody();
-            input_.draw(ui::BODY_Y + 20, fields()[selected_].label);
-            ui::footer("ENTER save   ` cancel");
+            input_.draw(ui::BODY_Y + 20, T(fields()[selected_].label));
+            ui::footer(T("ENTER save   ` cancel"));
             return;
         }
         std::vector<std::string> rows;
         for (const Field& f : fields()) {
             std::string v = config::get(f.key, f.def);
             if (f.secret && !v.empty()) v = "********";
-            rows.push_back(std::string(f.label) + ": " + (v.empty() ? "-" : v));
+            rows.push_back(std::string(T(f.label)) + ": " + (v.empty() ? "-" : v));
         }
         ui::list(rows, selected_, scroll_);
-        std::string hint = !status_.empty() ? status_ : web::running() ? web::address() : "ENTER edit   ` back";
+        std::string hint = !status_.empty() ? status_ : web::running() ? web::address() : T("ENTER edit   ` back");
         ui::footer(hint.c_str());
     }
 

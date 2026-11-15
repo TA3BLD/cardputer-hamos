@@ -17,7 +17,7 @@
 // TAB switches between the five pages.
 class PotaApp : public App {
 public:
-    const char* name() const override { return "POTA/SOTA"; }
+    const char* name() const override { return T("POTA/SOTA"); }
     uint16_t color() const override { return 0x2E8B; }
 
     void onEnter() override {
@@ -248,7 +248,7 @@ private:
         }
         if (!park.empty()) {
             int n = pota::activationCount(pota::POTA);
-            ui::text(4, y, "POTA " + park, ui::C_NOTICE, 1.5);
+            ui::text(4, y, T("POTA ") + park, ui::C_NOTICE, 1.5);
             char b[32];
             snprintf(b, sizeof(b), "%d/10", n);
             ui::text(160, y, b, n >= 10 ? ui::C_OK : ui::C_WARN, 1.5);
@@ -256,7 +256,7 @@ private:
         }
         if (!summit.empty()) {
             int n = pota::activationCount(pota::SOTA);
-            ui::text(4, y, "SOTA " + summit, ui::C_NOTICE, 1.5);
+            ui::text(4, y, T("SOTA ") + summit, ui::C_NOTICE, 1.5);
             char b[32];
             snprintf(b, sizeof(b), "%d/4", n);
             ui::text(160, y, b, n >= 4 ? ui::C_OK : ui::C_WARN, 1.5);

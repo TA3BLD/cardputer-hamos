@@ -13,7 +13,7 @@
 // last hour, with distance and direction. Also shows our own reporting.
 class PskrApp : public App {
 public:
-    const char* name() const override { return "PSK Reporter"; }
+    const char* name() const override { return T("PSK Reporter"); }
     uint16_t color() const override { return 0xFB56; }
 
     void onEnter() override {

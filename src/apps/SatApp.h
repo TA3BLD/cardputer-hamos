@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Config.h"
 #include "core/Net.h"
 #include "core/Station.h"
@@ -19,7 +20,7 @@
 // works offline afterwards; refresh it every week or two.
 class SatApp : public App {
 public:
-    const char* name() const override { return "Satellites"; }
+    const char* name() const override { return T("Satellites"); }
     uint16_t color() const override { return 0xC618; }
 
     void onEnter() override {
@@ -43,7 +44,7 @@ public:
     void onKey(const KeyEvent& k) override {
         if (open_) return;
         if (k.ch == 'u' || k.ch == 'U') {
-            if (!net::connected()) status_ = "No WiFi connection";
+            if (!net::connected()) status_ = T("No WiFi connection");
             else phase_ = DOWNLOAD_PENDING;
         } else if (k.enter && !entries_.empty()) {
             const Entry& e = entries_[(size_t)selected_];
@@ -76,8 +77,8 @@ public:
     void draw() override {
         if (phase_ == DOWNLOAD_PENDING) {
             ui::clearBody();
-            ui::textCentered(ui::BODY_Y + 40, "Downloading orbit data...", ui::C_DIM, 1.5);
-            ui::footer("celestrak.org");
+            ui::textCentered(ui::BODY_Y + 40, T("Downloading orbit data..."), ui::C_DIM, 1.5);
+            ui::footer(T("celestrak.org"));
             phase_ = DOWNLOAD_NOW;
             return;
         }
@@ -122,17 +123,17 @@ private:
         HTTPClient http;
         http.setTimeout(10000);
         if (!http.begin(client, "https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle")) {
-            status_ = "Could not start the download";
+            status_ = T("Could not start the download");
             return;
         }
         int code = http.GET();
         if (code == 200) {
             std::string body = http.getString().c_str();
             parseTle(body);
-            if (entries_.empty()) status_ = "Unexpected answer from celestrak.org";
-            else status_ = storage::writeFile(kPath, body) ? "Orbit data updated" : "Updated (no SD card: not saved)";
+            if (entries_.empty()) status_ = T("Unexpected answer from celestrak.org");
+            else status_ = storage::writeFile(kPath, body) ? T("Orbit data updated") : T("Updated (no SD card: not saved)");
         } else {
-            status_ = "Download failed (" + std::to_string(code) + ")";
+            status_ = T("Download failed (") + std::to_string(code) + ")";
         }
         http.end();
     }
@@ -158,9 +159,9 @@ private:
     void drawList() {
         if (entries_.empty()) {
             ui::clearBody();
-            ui::textCentered(ui::BODY_Y + 28, "No orbit data", ui::C_WARN, 1.5);
-            ui::textCentered(ui::BODY_Y + 54, "Press U to download it (needs WiFi)", ui::C_DIM);
-            ui::footer(status_.empty() ? "U update   ` back" : status_.c_str());
+            ui::textCentered(ui::BODY_Y + 28, T("No orbit data"), ui::C_WARN, 1.5);
+            ui::textCentered(ui::BODY_Y + 54, T("Press U to download it (needs WiFi)"), ui::C_DIM);
+            ui::footer(status_.empty() ? T("U update   ` back") : status_.c_str());
             return;
         }
         std::vector<std::string> names;
@@ -176,17 +177,17 @@ private:
         ui::text(6, ui::BODY_Y + 3, ui::ascii(sat_.name), ui::C_SEL, 1.5);
         double lat, lon;
         if (!sat_.valid) {
-            ui::textCentered(ui::BODY_Y + 44, "This orbit is not supported", ui::C_WARN);
-            ui::textCentered(ui::BODY_Y + 58, "(only low orbits are calculated)", ui::C_DIM);
+            ui::textCentered(ui::BODY_Y + 44, T("This orbit is not supported"), ui::C_WARN);
+            ui::textCentered(ui::BODY_Y + 58, T("(only low orbits are calculated)"), ui::C_DIM);
         } else if (!net::timeValid()) {
-            ui::textCentered(ui::BODY_Y + 50, "Needs the time: WiFi or GPS", ui::C_WARN);
+            ui::textCentered(ui::BODY_Y + 50, T("Needs the time: WiFi or GPS"), ui::C_WARN);
         } else if (!station::position(lat, lon)) {
-            ui::textCentered(ui::BODY_Y + 50, "Needs your position: grid or GPS", ui::C_WARN);
+            ui::textCentered(ui::BODY_Y + 50, T("Needs your position: grid or GPS"), ui::C_WARN);
         } else {
             char line[64];
             sgp4::Look now = sgp4::look(sat_, (double)time(nullptr), lat, lon);
             if (!now.valid) {
-                ui::text(6, ui::BODY_Y + 20, "Orbit data too old: press U in the list", ui::C_WARN);
+                ui::text(6, ui::BODY_Y + 20, T("Orbit data too old: press U in the list"), ui::C_WARN);
             } else {
                 snprintf(line, sizeof(line), "Az %03.0f  El %+.0f  %.0f km", now.azimuth, now.elevation, now.rangeKm);
                 ui::text(6, ui::BODY_Y + 20, line, now.elevation > 0 ? ui::C_OK : ui::C_TEXT, 1.5);
@@ -195,13 +196,13 @@ private:
                 ui::text(6, ui::BODY_Y + 36, line, now.elevation > 0 ? ui::C_TEXT : ui::C_DIM);
             }
             if (phase_ == PASSES_PENDING) {
-                ui::text(6, ui::BODY_Y + 54, "Calculating passes...", ui::C_DIM);
+                ui::text(6, ui::BODY_Y + 54, T("Calculating passes..."), ui::C_DIM);
                 phase_ = PASSES_NOW;
             } else if (passes_.empty()) {
-                ui::text(6, ui::BODY_Y + 54, "No pass in the next 36 hours", ui::C_DIM);
+                ui::text(6, ui::BODY_Y + 54, T("No pass in the next 36 hours"), ui::C_DIM);
             } else {
                 double offset = atof(config::get("utc_offset", "3").c_str()) * 3600.0;
-                ui::text(6, ui::BODY_Y + 50, "Rise (local)  Max   Min  Path", ui::C_DIM);
+                ui::text(6, ui::BODY_Y + 50, T("Rise (local)  Max   Min  Path"), ui::C_DIM);
                 for (size_t i = 0; i < passes_.size(); i++) {
                     const sgp4::Pass& p = passes_[i];
                     time_t local = (time_t)(p.aos + offset);
@@ -215,7 +216,7 @@ private:
                 }
             }
         }
-        ui::footer("` back to the list");
+        ui::footer(T("` back to the list"));
     }
 
     std::vector<Entry> entries_;

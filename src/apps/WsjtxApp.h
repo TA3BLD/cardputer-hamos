@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "core/Lang.h"
 #include "core/Net.h"
 #include "core/Ui.h"
 #include "core/Web.h"
@@ -46,16 +47,16 @@ public:
         if (!wsjtxlink::enabled() || !wsjtxlink::listening() || (wsjtxlink::decodes().empty() && !wsjtxlink::active())) {
             ui::clearBody();
             if (!wsjtxlink::enabled()) {
-                ui::textCentered(ui::BODY_Y + 30, "Switched off", ui::C_WARN, 1.5);
-                ui::textCentered(ui::BODY_Y + 54, "Set WSJT-X link to 1 in Settings", ui::C_DIM);
+                ui::textCentered(ui::BODY_Y + 30, T("Switched off"), ui::C_WARN, 1.5);
+                ui::textCentered(ui::BODY_Y + 54, T("Set WSJT-X link to 1 in Settings"), ui::C_DIM);
             } else if (!wsjtxlink::listening()) {
-                ui::textCentered(ui::BODY_Y + 40, "Waiting for WiFi", ui::C_WARN, 1.5);
+                ui::textCentered(ui::BODY_Y + 40, T("Waiting for WiFi"), ui::C_WARN, 1.5);
             } else {
-                ui::textCentered(ui::BODY_Y + 14, "Waiting for WSJT-X", ui::C_DIM, 1.5);
-                ui::textCentered(ui::BODY_Y + 40, "In WSJT-X: Settings > Reporting", ui::C_DIM);
-                ui::textCentered(ui::BODY_Y + 54, "UDP Server = " + net::address() + "  port 2237", ui::C_TEXT);
+                ui::textCentered(ui::BODY_Y + 14, T("Waiting for WSJT-X"), ui::C_DIM, 1.5);
+                ui::textCentered(ui::BODY_Y + 40, T("In WSJT-X: Settings > Reporting"), ui::C_DIM);
+                ui::textCentered(ui::BODY_Y + 54, T("UDP Server = ") + net::address() + T("  port 2237"), ui::C_TEXT);
             }
-            ui::footer("` back");
+            ui::footer(T("` back"));
             return;
         }
         std::vector<const wsjtxlink::Decode*> rows = visible();
@@ -71,7 +72,7 @@ public:
         if (follow_ || selected_ >= (int)rows.size()) selected_ = rows.empty() ? 0 : (int)rows.size() - 1;
         if (rows.empty()) {
             ui::clearBody();
-            ui::textCentered(ui::BODY_Y + 40, "No CQ calls yet", ui::C_DIM);
+            ui::textCentered(ui::BODY_Y + 40, T("No CQ calls yet"), ui::C_DIM);
         } else {
             ui::list(text, selected_, scroll_, &colors);
         }
