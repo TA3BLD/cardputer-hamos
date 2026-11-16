@@ -1,0 +1,20 @@
+HamOS - amateur radio toolkit for the Cardputer / Cardputer ADV (LoRa + GNSS cap optional)
+
+FT8 / FT4 / WSPR, SSTV, PSK31, CW and RTTY decoders, APRS (internet, LoRa-APRS 433.775 MHz, audio modem),
+Meshtastic-compatible mesh with the Meshtastic phone app over Bluetooth, offline map, logbook with
+callbook lookup and online log upload, POTA/SOTA spots, DX cluster, satellites with Doppler, radio
+control (CI-V, Yaesu, Kenwood, IC-705 Bluetooth, rigctld), CW and voice keyers, emergency mode (SOS),
+PC control panel over USB and WiFi. Turkish and English.
+
+Copy the "sdcard" folder of the repository to a FAT32 microSD card (maps, flags, guide pages).
+
+---
+
+HamOS - Cardputer / Cardputer ADV için amatör telsiz yazılımı (LoRa + GNSS başlığı isteğe bağlı)
+
+FT8 / FT4 / WSPR, SSTV, PSK31, CW ve RTTY, APRS (internet, 433.775 MHz LoRa-APRS, ses modemi), Meshtastic
+uyumlu mesh ve Bluetooth ile Meshtastic telefon uygulaması, internetsiz harita, çağrı sorgulu log ve
+online log yükleme, POTA/SOTA, DX cluster, Doppler'li uydu takibi, telsiz kontrolü (CI-V, Yaesu, Kenwood,
+IC-705 Bluetooth, rigctld), CW ve ses mesajı, acil durum modu (SOS), USB ve WiFi ile PC paneli.
+
+Depodaki "sdcard" klasörünü FAT32 microSD karta kopyalayın (haritalar, bayraklar, rehber).

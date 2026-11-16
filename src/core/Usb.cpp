@@ -1,7 +1,9 @@
 #include "Usb.h"
+#include "Updater.h"
 #include "Version.h"
 #include <Arduino.h>
 #include <M5Cardputer.h>
+#include <Update.h>
 #include <sys/time.h>
 #include <cstdarg>
 #include <cstdio>
@@ -256,6 +258,87 @@ std::string filesWrite(int id, const json::Object& r) {
     return w.out;
 }
 
+// ---- firmware from the PC: fw.begin {size}, fw.write {offset, data}, fw.end ----
+// The image goes into the other app slot; nothing changes until fw.end has
+// checked it. After a restart the boot guard watches the new version.
+size_t fwSize = 0, fwDone = 0;
+bool fwActive = false;
+
+std::string fwBegin(int id, const json::Object& r) {
+    if (fwActive) Update.abort();
+    fwSize = (size_t)r.num("size");
+    fwDone = 0;
+    if (fwSize < 100000) return err(id, "not a firmware image");
+    fwActive = Update.begin(fwSize);
+    if (!fwActive) return err(id, "not enough room for the update");
+    json::Writer w;
+    begin(w, id).end();
+    return w.out;
+}
+
+std::string fwWrite(int id, const json::Object& r) {
+    if (!fwActive) return err(id, "fw.begin first");
+    if ((size_t)r.num("offset") != fwDone) return err(id, "offset does not match");
+    std::string data = base64::decode(r.str("data"));
+    if (Update.write((uint8_t*)data.data(), data.size()) != data.size()) {
+        Update.abort();
+        fwActive = false;
+        return err(id, "write failed");
+    }
+    fwDone += data.size();
+    json::Writer w;
+    begin(w, id).kv("done", (unsigned long)fwDone).end();
+    return w.out;
+}
+
+std::string fwEnd(int id) {
+    if (!fwActive) return err(id, "fw.begin first");
+    fwActive = false;
+    if (fwDone != fwSize) {
+        Update.abort();
+        return err(id, "incomplete image");
+    }
+    if (!Update.end(true)) return err(id, "the file is not a valid firmware image");
+    updater::afterManualUpdate();
+    rebootAtMs = millis() + 800;            // after the reply
+    if (!rebootAtMs) rebootAtMs = 1;
+    json::Writer w;
+    begin(w, id).kv("restarting", true).end();
+    return w.out;
+}
+
+// ---- settings backup: config.export -> text, config.import {text} ----
+std::string configExport(int id) {
+    std::string text;
+    for (const auto& kv : config::all()) text += kv.first + "=" + kv.second + "\n";
+    json::Writer w;
+    begin(w, id).kv("text", text).end();
+    return w.out;
+}
+
+std::string configImport(int id, const json::Object& r) {
+    std::string text = r.str("text");
+    int n = 0;
+    size_t a = 0;
+    while (a < text.size()) {
+        size_t e = text.find('\n', a);
+        std::string line = text.substr(a, e == std::string::npos ? std::string::npos : e - a);
+        a = e == std::string::npos ? text.size() : e + 1;
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        size_t eq = line.find('=');
+        if (line.empty() || line[0] == '#' || eq == std::string::npos || eq == 0) continue;
+        config::set(line.substr(0, eq), line.substr(eq + 1));
+        n++;
+    }
+    if (!n) return err(id, "no settings in the file");
+    bool saved = config::save();
+    settings::apply(settings::WIFI | settings::MESH | settings::APRS | settings::RIG | settings::FT8 | settings::LANG);
+    if (host.redraw) host.redraw();
+    json::Writer w;
+    begin(w, id).kv("count", n).kv("saved", saved).end();
+    return w.out;
+}
+
 std::string filesDelete(int id, const json::Object& r) {
     std::string path = r.str("path");
     if (!safePath(path) || path == "/") return err(id, "bad path");
@@ -436,6 +519,11 @@ std::string handle(const std::string& line, bool fromWeb) {
     if (cmd == "mesh.send") return meshSend(id, r);
     if (cmd == "aprs.list") return aprsList(id);
     if (cmd == "aprs.send" || cmd == "aprs.beacon") return aprsSend(id, r);
+    if (cmd == "fw.begin") return fwBegin(id, r);
+    if (cmd == "fw.write") return fwWrite(id, r);
+    if (cmd == "fw.end") return fwEnd(id);
+    if (cmd == "config.export") return configExport(id);
+    if (cmd == "config.import") return configImport(id, r);
     if (cmd == "reboot") {
         if (fromWeb) {                          // after the reply has been sent, from tick()
             rebootAtMs = millis() + 500;

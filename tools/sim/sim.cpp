@@ -1620,6 +1620,42 @@ int main() {
         back();
     }
 
+    // ---- From the PC: firmware upload, settings backup / restore; contacts to a PC logger ----
+    {
+        auto call = [](const std::string& body) { return usb::handle("{\"id\":7," + body + "}"); };
+        std::string image(200000, '\x5a');
+        Update.finished = false;
+        EXPECT(call("\"cmd\":\"fw.begin\",\"size\":200000").find("\"ok\":true") != std::string::npos);
+        for (size_t off = 0; off < image.size(); off += 2048) {
+            std::string part = image.substr(off, 2048);
+            std::string r = call("\"cmd\":\"fw.write\",\"offset\":" + std::to_string(off) + ",\"data\":\"" +
+                                 base64::encode((const uint8_t*)part.data(), part.size()) + "\"");
+            if (r.find("\"ok\":true") == std::string::npos) { EXPECT(false); break; }
+        }
+        EXPECT(call("\"cmd\":\"fw.end\"").find("\"restarting\":true") != std::string::npos && Update.finished &&
+               Update.data == image && sim_nvs["hamos_upd"]["watch"] == "1");
+        EXPECT(call("\"cmd\":\"fw.write\",\"offset\":0,\"data\":\"AA==\"").find("fw.begin first") != std::string::npos);
+        sim_nvs["hamos_upd"]["watch"] = "0";
+
+        std::string exported = call("\"cmd\":\"config.export\"");
+        EXPECT(exported.find("callsign=TA3BLD") != std::string::npos);
+        EXPECT(call("\"cmd\":\"config.import\",\"text\":\"# test\\nbrightness=120\\r\\nvolume=150\\n\"").find("\"count\":2") != std::string::npos &&
+               config::get("brightness") == "120" && config::get("volume") == "150");
+        config::set("brightness", "160");
+        config::set("volume", "160");
+
+        config::set("log_udp", "192.168.1.255:12060");
+        size_t udpBefore = sim_udp_sent.size();
+        adif::Qso q;
+        q.call = "JA1XYZ"; q.freq = "14.074"; q.mode = "FT8"; q.date = "20261116"; q.time = "1234"; q.rstSent = "-10"; q.rstRcvd = "-12"; q.grid = "PM95";
+        logbook::add(q);
+        EXPECT(sim_udp_sent.size() == udpBefore + 1 && sim_udp_sent.back().first == "192.168.1.255:12060" &&
+               sim_udp_sent.back().second.find("<call>JA1XYZ</call>") != std::string::npos &&
+               sim_udp_sent.back().second.find("<rxfreq>1407400</rxfreq>") != std::string::npos &&
+               sim_udp_sent.back().second.find("<band>14</band>") != std::string::npos);
+        config::set("log_udp", "");
+    }
+
     // ---- The same screens in Turkish (the device's default language) ----
     {
         config::set("lang", "tr");

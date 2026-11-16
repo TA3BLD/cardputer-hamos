@@ -80,6 +80,8 @@ inline const std::vector<Field>& fields() {
             {"wspr_dbm", "WSPR power dBm", "23", 2, false, false, settings::NONE},
             {"wspr_every", "WSPR every n slots", "5", 2, false, false, settings::NONE},
             {"wsjtx_on", "WSJT-X link 0/1", "0", 1, false, false, settings::FT8},
+            {"log_udp", "Log to PC host:port", "", 40, false, false, settings::NONE},
+            {"log_udp_fmt", "Log to PC format n1mm/adif", "n1mm", 4, false, false, settings::NONE},
             {"wsjtx_port", "WSJT-X UDP port", "2237", 5, false, false, settings::FT8},
             {"pota_ref", "POTA park ref", "", 12, true, false, settings::NONE},
             {"sota_ref", "SOTA summit ref", "", 14, true, false, settings::NONE},

@@ -92,8 +92,12 @@ void forEach(void (*fn)(const adif::Qso& q, void* user), void* user) {
 size_t total() { return totalCount; }
 bool workedEntity(const dxcc::Entity* e) { return e && entities.count(e) > 0; }
 
+static void (*addHook)(const adif::Qso&) = nullptr;
+void onAdd(void (*fn)(const adif::Qso& q)) { addHook = fn; }
+
 bool add(const adif::Qso& q) {
     load();
+    if (addHook) addHook(q);
     std::string out = storage::exists(kPath) ? "" : adif::header();
     bool ok = storage::appendFile(kPath, out + adif::toRecord(q));
     remember(q);

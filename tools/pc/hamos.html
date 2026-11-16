@@ -165,6 +165,15 @@ label.f{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--di
   <section id="tab-status">
     <div class="row"><button class="b" id="statReload">Yenile</button><button class="b red" id="rebootBtn">Cihazı yeniden başlat</button></div>
     <div id="statusBox" class="card"></div>
+    <div class="card">
+      <h3>Bakım</h3>
+      <div class="row">
+        <button class="b" id="cfgExport">Ayarları yedekle</button>
+        <label class="b grey">Ayarları geri yükle<input type="file" id="cfgImport" accept=".txt" hidden></label>
+        <label class="b red">Yazılım yükle (.bin)<input type="file" id="fwFile" accept=".bin" hidden></label>
+      </div>
+      <div id="maintInfo" class="small dim">Yazılım: PlatformIO'nun yaptığı firmware.bin. Yeni sürüm açılmazsa cihaz eskisine kendiliğinden döner.</div>
+    </div>
   </section>
 </main>
 <div id="toast"></div>
@@ -607,6 +616,34 @@ async function readFile(path) {
   document.getElementById("fileInfo").textContent = "";
   return new Blob(parts);
 }
+// ---- maintenance: settings backup / restore, firmware ----
+document.getElementById("cfgExport").onclick = async () => {
+  const r = await api("config.export");
+  if (r.ok) save(new Blob([r.text], {type: "text/plain"}), "hamos-ayarlar-" + new Date().toISOString().slice(0, 10) + ".txt");
+};
+document.getElementById("cfgImport").onchange = async e => {
+  const file = e.target.files[0]; e.target.value = "";
+  if (!file || !confirm(file.name + " içindeki ayarlar yüklensin mi?")) return;
+  const r = await api("config.import", {text: await file.text()});
+  if (r.ok) toast(r.count + " ayar yüklendi" + (r.saved ? "" : " (SD kart yok: kaydedilmedi)"));
+};
+document.getElementById("fwFile").onchange = async e => {
+  const file = e.target.files[0]; e.target.value = "";
+  if (!file || !confirm(file.name + " yüklensin mi? Cihaz sonra yeniden başlar.")) return;
+  const info = document.getElementById("maintInfo");
+  const data = new Uint8Array(await file.arrayBuffer());
+  if (!(await api("fw.begin", {size: data.length})).ok) return;
+  for (let off = 0; off < data.length; off += 2048) {
+    const part = data.subarray(off, off + 2048);
+    let bin = ""; for (const b of part) bin += String.fromCharCode(b);
+    const r = await api("fw.write", {offset: off, data: btoa(bin)});
+    if (!r.ok) { info.textContent = "Yükleme durdu: " + (r.error || ""); return; }
+    info.textContent = "Yazılım yükleniyor: %" + Math.round(100 * Math.min(data.length, off + 2048) / data.length);
+  }
+  const end = await api("fw.end");
+  info.textContent = end.ok ? "Yüklendi, cihaz yeniden başlıyor..." : "Olmadı: " + (end.error || "") + " (eski yazılım duruyor)";
+};
+
 function save(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }
 
 // ------------------------------------------------------------- settings ----

@@ -656,3 +656,5 @@
 {"Tracker fast every s", "Takip hızlıda her sn"},
 {"Tracker slow km/h", "Takip yavaş km/s"},
 {"Tracker slow every s", "Takip yavaşta her sn"},
+{"Log to PC host:port", "Log PC'ye host:port"},
+{"Log to PC format n1mm/adif", "Log PC biçimi n1mm/adif"},

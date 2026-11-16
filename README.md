@@ -14,7 +14,7 @@ An amateur radio toolkit for the M5Stack Cardputer ADV (with or without the LoRa
 | Mesh | Meshtastic-compatible chat, node list (signal, hops, distance, bearing), radio status | LoRa cap |
 | APRS | Stations and two-way messages over APRS-IS and LoRa-APRS (433.775 MHz); 1200 baud AFSK modem on the microphone and speaker; Mic-E decoding; receive-only iGate | WiFi / LoRa cap / a radio |
 | Map | Offline map: coastlines, borders, place names, Maidenhead grid, APRS stations, mesh nodes, your position | SD card |
-| FT8 | FT8 on the device: decodes from the microphone, answers a CQ or calls CQ through the speaker, runs the contact and logs it | time (WiFi or GPS), a radio |
+| FT8 / FT4 | FT8 (and FT4 with M) on the device: decodes from the microphone, answers a CQ or calls CQ through the speaker, runs the contact and logs it | time (WiFi or GPS), a radio |
 | DX Cluster | Live telnet spots with band filter and flags; countries you never logged are highlighted and beep | WiFi |
 | WSJT-X | Second screen for WSJT-X / JTDX on a PC; contacts logged there go into the HamOS log | WiFi + PC |
 | Solar | Solar flux, A/K index and HF band conditions from hamqsl.com; sunrise/sunset for your grid | WiFi (sun times offline) |
@@ -42,11 +42,18 @@ An amateur radio toolkit for the M5Stack Cardputer ADV (with or without the LoRa
 | WX / Digi | BME280 weather station with APRS weather reports; LoRa-APRS digipeater | sensor / LoRa cap |
 | Contest | Callsign + number, ENTER logs; serial numbers, dupes, rate, CW exchange | |
 | Awards | DXCC, continents, the 81 Turkish provinces, grid squares | |
+| Alerts | Watch list (calls, prefixes, parks, new countries) from cluster, FT8 and POTA; band openings from PSK Reporter | WiFi |
+| WSPR | Beacon in two-minute slots with PTT; who heard you (wspr.live) | a radio |
+| CW practice | A simulated station calls CQ; copy its call and exchange | |
+| Net control | Check-in list with traffic marks, saved per net | |
+| Message form | Numbered formal message with word count, sent over mesh / APRS | |
+| Tracker | SmartBeaconing position beacons; mesh mailbox (store and forward) | GPS + LoRa |
+| Self test, Audio levels, Profiles, Setup wizard | Check every part; set mic and transmit levels; switch sets of settings; first start | |
 | Settings | Everything, editable on the device | |
 | Update | Checks GitHub for a new release; installs only after you confirm; returns to the old version if the new one fails to start | WiFi |
 | Emergency | SOS over mesh / LoRa-APRS / APRS-IS with repeats, status messages, safety timer, siren, light, battery saver, alerts for others' calls. Hold G0 for 2 s from anywhere | |
 
-The interface is Turkish by default (Settings: Language tr/en). The status bar shows UTC time, unread mesh (`M3`) and APRS (`A1`) messages, GPS fix, WiFi and battery. Turkish letters (ç ğ ı İ ö ş ü) are shown everywhere; the built-in font lacks them, so HamOS draws them itself. The screen dims after a minute without key presses.
+The interface is Turkish by default (Settings: Language tr/en). In the launcher TAB switches groups, typing searches by name and Fn+ENTER marks favourites. The status bar shows UTC time, unread mesh (`M3`) and APRS (`A1`) messages, GPS fix, WiFi and battery. Turkish letters (ç ğ ı İ ö ş ü) are shown everywhere; the built-in font lacks them, so HamOS draws them itself. The screen dims after a minute without key presses.
 
 ## SD card
 
@@ -150,6 +157,10 @@ With "Meshtastic app BT" = 1 the official Meshtastic app (phone or PC) connects 
 - GitHub Actions (`.github/workflows/build.yml`) builds the firmware, runs the tests, and for a tag `vX.Y.Z` publishes a release; `pages.yml` puts the installer on GitHub Pages. The version is in `src/core/Version.h`.
 - On the device: Update app. For a private repository set an "Update token" (a GitHub token that may read the repository).
 
+## Logging programs on the PC
+
+Set "Log to PC" to `host:port` (e.g. `192.168.1.255:12060` for the whole network) and every contact HamOS logs is sent as an N1MM Logger+ "contactinfo" message, which Log4OM, N1MM and others accept; "Log to PC format" = adif sends a plain ADIF record instead. The PC panel's Status tab backs up and restores the settings and installs a firmware file. `tools/m5burner/` packages a release for M5Burner.
+
 ## Hardware notes
 
 LoRa + GNSS cap wiring, from the Meshtastic firmware's Cardputer ADV board definition and the `espp` Cardputer component:
@@ -178,6 +189,7 @@ On a PC, without hardware:
 
 - **FT8** against the WSJT-X port in the Python package ft8lib (`tools/ft8/crosscheck.py`): message packing identical for 1519 of 1519 messages; ft8lib decodes the generated audio; HamOS decodes ft8lib's audio, all signals down to -17 dB SNR and half at -19 dB (WSJT-X: about -21), no false decodes. One difference found was in ft8lib, not HamOS (callsigns like A61AA, which WSJT-X's Fortran accepts).
 - **SSTV** against the Python packages sstv (Rust) and pysstv (`tools/sstv/crosscheck.py`): transmissions as long as sstv's to the sample; sstv decodes them as well as its own; HamOS decodes sstv's signals in all ten modes with noise and a 0.1 % clock error.
+- **FT4** and **WSPR** against ft8lib (`tools/ft8/crosscheck_ft4.py`, `crosscheck_wspr.py`): tones identical, ft8lib decodes the audio HamOS sends; HamOS decodes FT4 down to about -12 dB (WSJT-X: about -17). WSPR is transmit only.
 - **PSK31**: Varicode identical to fldigi's; decodes an independent generator; 99 % of characters at 0 dB SNR.
 - **Meshtastic** packets match the official Python library byte for byte; **satellite** positions match the Python sgp4 package within a metre; **Mic-E** matches aprslib; **map** reader tested on the real files.
 - **Unit tests** (`test/host/`) for everything in `src/lib`.

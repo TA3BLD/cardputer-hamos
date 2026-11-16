@@ -58,6 +58,7 @@
 #include "core/Gps.h"
 #include "core/Keyer.h"
 #include "core/Lang.h"
+#include "core/LogCast.h"
 #include "core/LoraAprs.h"
 #include "core/Mailbox.h"
 #include "core/Mesh.h"
@@ -336,6 +337,7 @@ void setup() {
     gps::begin();
     mesh::begin();
     rangetest::begin();
+    logcast::begin();
     loraaprs::begin();
     aprsis::begin();
     rig::begin();

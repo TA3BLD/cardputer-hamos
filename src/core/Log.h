@@ -16,6 +16,7 @@ void load();                                    // reads the file once; later ca
 const std::vector<adif::Qso>& recent();         // oldest first, at most MAX_RECENT
 size_t total();                                 // contacts in the file
 bool add(const adif::Qso& q);                   // false if it could not be written to the SD card
+void onAdd(void (*fn)(const adif::Qso& q));     // called for every contact logged
 bool remove(size_t indexInRecent);              // deletes one contact from the file
 bool workedEntity(const dxcc::Entity* e);       // any contact with this country, whole log
 // Every contact in the file, oldest first (reads the SD card; not for every frame).
