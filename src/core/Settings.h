@@ -76,6 +76,8 @@ inline const std::vector<Field>& fields() {
             {"sota_ref", "SOTA summit ref", "", 14, true, false, settings::NONE},
             {"near_km", "Nearby parks km", "150", 4, false, false, settings::NONE},
             {"psk_report", "PSK Reporter 0/1", "0", 1, false, false, settings::NONE},
+            {"watch", "Watch list", "", 80, true, false, settings::NONE},
+            {"band_alert", "Band opening alert 0/1", "0", 1, false, false, settings::NONE},
             {"hamqth_user", "HamQTH user", "", 20, false, false, settings::NONE},
             {"hamqth_pass", "HamQTH password", "", 40, false, true, settings::NONE},
             {"qrz_user", "QRZ user", "", 20, false, false, settings::NONE},

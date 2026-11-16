@@ -11,6 +11,10 @@
 #include "core/Station.h"
 #include "core/Storage.h"
 #include "core/RangeTest.h"
+#include "lib/Adif.h"
+#include "lib/Sun.h"
+#include "core/Net.h"
+#include "core/Log.h"
 #include "core/Ui.h"
 #include "lib/Maidenhead.h"
 #include "lib/MapData.h"
@@ -56,6 +60,8 @@ public:
             if (station::position(lat, lon)) { view_.lat = lat; view_.lon = lon; }
         } else if (k.ch == 'c' || k.ch == 'C') cities_ = !cities_;
         else if (k.ch == 'g' || k.ch == 'G') grid_ = !grid_;
+        else if (k.ch == 'q' || k.ch == 'Q') qsos_ = !qsos_;
+        else if (k.ch == 'l' || k.ch == 'L') night_ = !night_;
         else if (k.tab) {
             if (marks_.empty()) return;
             selected_ = (selected_ + 1) % (int)marks_.size();
@@ -75,6 +81,8 @@ public:
         if (grid_) drawGrid();
         labels_.clear();
         collectMarks();
+        if (night_) drawTerminator();
+        if (qsos_) drawQsos();
         drawMarks();
         if (cities_) drawCities();
         drawScale();
@@ -204,6 +212,8 @@ private:
             }
     }
 
+    bool qsos_ = false, night_ = false;
+
     bool placeLabel(int x, int y, const std::string& text, uint16_t color) {
         int w = (int)ui::glyphCount(text) * 6;
         Box b = {x, y, x + w, y + 8};
@@ -232,6 +242,39 @@ private:
             return maidenhead::distanceKm(view_.lat, view_.lon, a.lat, a.lon) < maidenhead::distanceKm(view_.lat, view_.lon, b.lat, b.lon);
         });
         if (selected_ >= (int)marks_.size()) selected_ = -1;
+    }
+
+    // Q: a line from home to every logged contact with a locator.
+    void drawQsos() {
+        double lat, lon, x0, y0;
+        if (!station::position(lat, lon)) return;
+        view_.toScreen(lat, lon, x0, y0);
+        for (const adif::Qso& q : logbook::recent()) {
+            double qlat, qlon, x, y;
+            if (!maidenhead::toLatLon(q.grid, qlat, qlon)) continue;
+            view_.toScreen(qlat, qlon, x, y);
+            if (std::fabs(x - x0) > 2000 || std::fabs(y - y0) > 2000) continue;
+            ui::line((int)x0, (int)y0, (int)x, (int)y, 0x8A22);
+            if (x >= 1 && x < ui::W - 1 && y >= view_.y0 + 1 && y < view_.y0 + view_.h - 1) ui::fill((int)x - 1, (int)y - 1, 3, 3, 0xFC08);
+        }
+    }
+
+    // L: the day/night line (grayline) now, as dots.
+    void drawTerminator() {
+        if (!net::timeValid()) return;
+        double sLat, sLon;
+        sun::subsolar(net::utcMillis() / 1000.0, sLat, sLon);
+        for (int px = 0; px < ui::W; px += 3) {
+            double lat0, lon0, lat1, lon1;
+            view_.toLatLon(px, view_.y0, lat0, lon0);
+            view_.toLatLon(px, view_.y0 + view_.h, lat1, lon1);
+            double lat = sun::terminatorLat(lon0, sLat, sLon), x, y;
+            view_.toScreen(lat, lon0, x, y);
+            if (y >= view_.y0 && y < view_.y0 + view_.h) ui::fill(px, (int)y, 2, 2, 0xFFE0);
+        }
+        double x, y;
+        view_.toScreen(sLat, sLon, x, y);       // the sun itself
+        if (x >= 4 && x < ui::W - 4 && y >= view_.y0 + 4 && y < view_.y0 + view_.h - 4) ui::circle((int)x, (int)y, 3, 0xFFE0, true);
     }
 
     void drawMarks() {

@@ -31,5 +31,8 @@ bool ptt(bool on);
 bool pttAvailable();
 // Sends text in CW with the radio's own keyer (CI-V, Kenwood, rigctld).
 bool sendCw(const std::string& text);
+// Repeater: shift in MHz (+0.6, -7.6; 0 = simplex) and CTCSS tone in Hz (0 = none).
+// Full with rigctld; with CI-V the direction and the tone (the offset is the radio's own).
+bool setRepeater(double shiftMhz, double toneHz);
 bool cwAvailable();
 }

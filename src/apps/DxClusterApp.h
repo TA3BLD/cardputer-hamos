@@ -11,6 +11,7 @@
 #include "core/Log.h"
 #include "core/Net.h"
 #include "core/Ui.h"
+#include "core/Watch.h"
 #include "lib/Adif.h"
 #include "lib/DxSpot.h"
 #include "lib/Dxcc.h"
@@ -135,6 +136,7 @@ private:
     void handleLine(const std::string& line) {
         dxspot::Spot s;
         if (!dxspot::parse(line, s)) return;
+        watch::check(s.call, s.khz, "", "cluster", s.comment);
         Row r;
         r.spot = s;
         r.entity = dxcc::lookup(s.call);

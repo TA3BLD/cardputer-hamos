@@ -7,6 +7,7 @@
 #include "core/App.h"
 #include "core/Lang.h"
 #include "core/PskReporter.h"
+#include "core/Watch.h"
 #include "core/Audio.h"
 #include "core/Config.h"
 #include "core/Flags.h"
@@ -286,6 +287,7 @@ private:
             if (!l.from.empty()) {              // to PSK Reporter (when switched on)
                 std::string loc = !w.empty() && ft8::isGrid4(w.back()) && w.back() != "RR73" ? w.back() : "";
                 pskr::add(l.from, loc, "FT8", (uint32_t)(atof(dialMhz().c_str()) * 1e6 + d.freqHz), d.snr);
+                watch::check(l.from, atof(dialMhz().c_str()) * 1000, "", "FT8", d.text);
             }
             const dxcc::Entity* e = dxcc::lookup(l.from);
             if (e) {

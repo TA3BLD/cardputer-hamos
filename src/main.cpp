@@ -40,10 +40,12 @@
 #include "apps/SolarApp.h"
 #include "apps/SstvApp.h"
 #include "apps/UpdateApp.h"
+#include "apps/WatchApp.h"
 #include "apps/WxApp.h"
 #include "apps/VoiceApp.h"
 #include "core/AprsIs.h"
 #include "core/Audio.h"
+#include "core/Alarms.h"
 #include "core/Ble.h"
 #include "core/Cap.h"
 #include "core/Config.h"
@@ -54,6 +56,7 @@
 #include "core/LoraAprs.h"
 #include "core/Mesh.h"
 #include "core/Net.h"
+#include "core/Openings.h"
 #include "core/RangeTest.h"
 #include "core/PskReporter.h"
 #include "core/Rig.h"
@@ -61,6 +64,7 @@
 #include "core/Ui.h"
 #include "core/Updater.h"
 #include "core/Usb.h"
+#include "core/Watch.h"
 #include "core/Weather.h"
 #include "core/Voice.h"
 #include "core/Web.h"
@@ -85,6 +89,7 @@ static SetupApp setupApp;
 static ProfilesApp profilesApp;
 static SelfTestApp selfTestApp;
 static AudioLevelApp audioLevelApp;
+static WatchApp watchApp;
 static AprsApp aprsApp;
 static MapApp mapApp;
 static DxClusterApp dxClusterApp;
@@ -151,6 +156,7 @@ static const Entry registry[] = {
         {&audioLevelApp, Launcher::DIGITAL},
         {&profilesApp, Launcher::TOOLS},
         {&setupApp, Launcher::TOOLS},
+        {&watchApp, Launcher::RADIO},
 };
 static std::vector<App*> listApps() {
     std::vector<App*> v;
@@ -349,6 +355,28 @@ void loop() {
     rangetest::tick();
     weather::tick();
     emergency::tick();
+    watch::tick(current == &launcher);
+    openings::tick(current == &launcher);
+    // Watch list hits, band openings, alarms: a beep and a line in the status bar for 30 s.
+    {
+        static uint32_t infoUntil = 0;
+        std::string info = watch::takeNotice();
+        if (info.empty()) info = openings::takeNotice();
+        std::string alarm = alarms::tick();
+        if (!alarm.empty()) {
+            info = alarm;
+            M5Cardputer.Speaker.tone(2000, 300);
+        }
+        if (!info.empty() && emergency::state() != emergency::State::Active) {
+            ui::setNotice(info);
+            infoUntil = millis() + 30000;
+            lastStatusMs = 0;
+        } else if (infoUntil && (int32_t)(millis() - infoUntil) > 0) {
+            infoUntil = 0;
+            if (emergency::state() != emergency::State::Active) ui::setNotice("");
+            lastStatusMs = 0;
+        }
+    }
     // Emergency from any screen: hold the G0 side button for 2 seconds.
     static bool g0Held = false;
     if (M5Cardputer.BtnA.pressedFor(2000)) {

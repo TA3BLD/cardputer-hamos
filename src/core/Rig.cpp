@@ -1,6 +1,7 @@
 #include "Rig.h"
 #include <Arduino.h>
 #include <WiFi.h>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include "Ble.h"
@@ -276,6 +277,33 @@ bool ptt(bool on) {
         case YAESU: send(cat::ascii::ptt(on, true)); return true;
         default: return groveKey();
     }
+}
+
+bool setRepeater(double shiftMhz, double toneHz) {
+    if (type == RIGCTLD) {
+        if (!tcpUp) return false;
+        char cmd[48];
+        client.print(shiftMhz > 0 ? "R +\n" : shiftMhz < 0 ? "R -\n" : "R None\n");
+        snprintf(cmd, sizeof(cmd), "O %.0f\n", std::fabs(shiftMhz) * 1e6);
+        client.print(cmd);
+        if (toneHz > 0) {
+            snprintf(cmd, sizeof(cmd), "C %.0f\n", toneHz * 10);
+            client.print(cmd);
+        }
+        client.print(toneHz > 0 ? "U TONE 1\n" : "U TONE 0\n");
+        return true;
+    }
+    if (type == CIV || type == IC705) {
+        send(cat::civ::frame(civAddr, {0x0F, (uint8_t)(shiftMhz > 0 ? 0x12 : shiftMhz < 0 ? 0x11 : 0x10)}));
+        if (toneHz > 0) {
+            int t = (int)(toneHz * 10 + 0.5);           // 88.5 Hz -> 0885 -> 00 08 85
+            send(cat::civ::frame(civAddr, {0x1B, 0x00, 0x00, (uint8_t)(((t / 1000) % 10) << 4 | (t / 100) % 10),
+                                           (uint8_t)(((t / 10) % 10) << 4 | t % 10)}));
+        }
+        send(cat::civ::frame(civAddr, {0x16, 0x42, (uint8_t)(toneHz > 0 ? 1 : 0)}));
+        return true;
+    }
+    return false;
 }
 
 bool cwAvailable() { return type == CIV || type == IC705 || type == KENWOOD || type == RIGCTLD; }

@@ -7,6 +7,9 @@
 #include <WiFiUdp.h>
 #include "core/Log.h"
 #include "core/Keyer.h"
+#include "core/Watch.h"
+#include "core/Openings.h"
+#include "core/Alarms.h"
 #include "core/Lang.h"
 #include "core/Emergency.h"
 #include "core/PhoneApi.h"
@@ -24,6 +27,7 @@
 #include "core/LoraAprs.h"
 #include "lib/Aprs.h"
 #include "lib/Ft8.h"
+#include "lib/Sgp4.h"
 #include "lib/Ft8Decoder.h"
 #include "lib/Bmp.h"
 #include "lib/Sstv.h"
@@ -1153,7 +1157,7 @@ int main() {
     {
         back();                                // to the launcher
         json::Object r = usbCall("\"cmd\":\"hello\"");
-        EXPECT(r.flag("ok") && has(r, "\"callsign\":\"TA3BLD\"") && has(r, "\"apps\":[\"Logbook\",\"Mesh\"") && has(r, "\"Settings\",\"Update\",\"Emergency\",\"Self test\",\"Audio levels\",\"Profiles\",\"Setup wizard\"]"));
+        EXPECT(r.flag("ok") && has(r, "\"callsign\":\"TA3BLD\"") && has(r, "\"apps\":[\"Logbook\",\"Mesh\"") && has(r, "\"Settings\",\"Update\",\"Emergency\"") && has(r, "\"Setup wizard\""));
         EXPECT(!usbCall("\"cmd\":\"nonsense\"").flag("ok") && !usbCall("\"cmd\":\"files.read\",\"path\":\"../x\"").flag("ok"));
         // Settings
         r = usbCall("\"cmd\":\"config.list\"");
@@ -1426,6 +1430,75 @@ int main() {
         tab();
         EXPECT(!audio::playing());
         back();
+    }
+
+    // ---- Alerts: watch list, band openings; repeater and satellite to the radio; map overlays ----
+    {
+        auto open = [](const char* name) {
+            usb::handle(std::string("{\"id\":1,\"cmd\":\"app.open\",\"name\":\"") + name + "\"}");
+            run(200);
+        };
+        config::set("watch", "K4SWL, TA1A*");
+        watch::check("K4SWL", 14062, "US-3971", "cluster", "CW");
+        watch::check("K4SWL", 14063, "US-3971", "cluster", "CW");    // the same again: once
+        watch::check("DL1XYZ", 14010, "", "cluster", "");             // not watched
+        EXPECT(watch::hits().size() == 1 && watch::takeNotice().find("K4SWL") == 0);
+        usb::handle("{\"id\":1,\"cmd\":\"app.open\",\"name\":\"home\"}");
+        run(3000);                             // background POTA check while the launcher is open
+        EXPECT(watch::hits().size() == 2 && watch::hits().back().call == "TA1ABC" && watch::hits().back().where == "POTA");
+        sim_http["retrieve.pskreporter.info/query?callsign=KM38"] = R"(<receptionReports>
+          <receptionReport receiverCallsign="TA3BLD" receiverLocator="KM38nk" senderCallsign="K1ABC" senderLocator="FN42" frequency="14074500" mode="FT8"/>
+          <receptionReport receiverCallsign="TA3XYZ" receiverLocator="KM38ab" senderCallsign="W2XYZ" senderLocator="FN31" frequency="14075100" mode="FT8"/>
+          <receptionReport receiverCallsign="TA3BLD" receiverLocator="KM38nk" senderCallsign="PY2AA" senderLocator="GG66" frequency="14074900" mode="FT8"/>
+          <receptionReport receiverCallsign="TA3BLD" receiverLocator="KM38nk" senderCallsign="K1ABC" senderLocator="FN42" frequency="14074600" mode="FT8"/>
+          <receptionReport receiverCallsign="TA3BLD" receiverLocator="KM38nk" senderCallsign="SV1AB" senderLocator="KM17" frequency="14074000" mode="FT8"/>
+          <receptionReport receiverCallsign="ZS6XX" receiverLocator="KG33" senderCallsign="TA3BLD" senderLocator="KM38nk" frequency="28074000" mode="FT8"/>
+          </receptionReports>)";
+        open("Alerts");
+        shot("alerts");
+        tab(); key('r');
+        run(300);
+        EXPECT(openings::bands().size() == 1 && openings::bands()[0].name == "20m" && openings::bands()[0].paths == 3 &&
+               openings::bands()[0].continents.count("NA") && openings::bands()[0].continents.count("SA"));
+        shot("band-openings");
+        back();
+
+        // Repeater -> radio (rigctld): frequency, FM, shift and tone
+        open("Repeaters");
+        sim_net_sent[kRigHost].clear();
+        key('t');
+        EXPECT(sim_net_sent[kRigHost].find("M FM 0") != std::string::npos && sim_net_sent[kRigHost].find("R ") != std::string::npos);
+        back();
+
+        // Satellite: ISS frequencies, the radio follows the Doppler shift, pass alarm
+        open("Satellites");
+        enter();
+        run(1500);
+        sim_net_sent[kRigHost].clear();
+        key('c');
+        run(2500);
+        {
+            // the simulator's orbit elements are fixed, so they may have aged out by today's date
+            sgp4::Satellite iss = sgp4::fromTle("ISS (ZARYA)", "1 25544U          26300.50000000  .00000000  00000-0  30000-3 0    05",
+                                                "2 25544  51.6400 100.0000 0005000  90.0000 270.0000 15.50000000    03");
+            bool valid = sgp4::look(iss, sim_utc_ms() / 1000.0, 38.42, 27.14).valid;
+            EXPECT(!valid || (sim_net_sent[kRigHost].find("F 1457") != std::string::npos ||
+                              sim_net_sent[kRigHost].find("F 1458") != std::string::npos));     // 145.800 MHz +- Doppler
+        }
+        key('c');
+        shot("satellite-doppler");
+        back(); back();
+        alarms::add("Test net 145.500", sim_utc_ms() / 1000 + 60, 120);
+        EXPECT(alarms::tick() == "Test net 145.500" && alarms::tick().empty());
+
+        // Map: QSO lines and the day/night line
+        open("Map");
+        key('-'); key('-'); key('-');
+        key('q'); key('l');
+        shot("map-qsos-grayline");
+        key('q'); key('l');
+        back();
+        config::set("watch", "");
     }
 
     // ---- The same screens in Turkish (the device's default language) ----

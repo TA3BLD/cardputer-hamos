@@ -8,6 +8,7 @@
 #include "core/Lang.h"
 #include "core/Station.h"
 #include "core/Storage.h"
+#include "core/Rig.h"
 #include "core/Ui.h"
 #include "lib/Maidenhead.h"
 
@@ -27,7 +28,14 @@ public:
     }
 
     void onKey(const KeyEvent& k) override {
-        if (ui::listNav(k, selected_, (int)list_.size())) dirty = true;
+        if (ui::listNav(k, selected_, (int)list_.size())) { dirty = true; return; }
+        if ((k.ch == 't' || k.ch == 'T') && !list_.empty()) {
+            const Repeater& r = list_[(size_t)selected_];
+            bool ok = rig::tune(r.mhz, "FM");
+            if (ok) rig::setRepeater(r.shift, atof(r.tone.c_str()));
+            tuned_ = ok ? std::string(T("Radio set to")) + " " + r.name : T("No radio connected");
+            dirty = true;
+        }
     }
 
     void draw() override {
@@ -55,11 +63,16 @@ public:
             snprintf(line, sizeof(line), "%03.0f deg  ", r.bearing);
             hint = line + hint;
         }
+        if (!tuned_.empty()) {
+            hint = tuned_;
+            tuned_.clear();
+        }
         if (hint.size() > 39) hint.resize(39);
         ui::footer(hint.empty() ? T("` back") : hint.c_str());
     }
 
 private:
+    std::string tuned_;
     struct Repeater {
         std::string name, tone, note;
         double mhz = 0, shift = 0, lat = 0, lon = 0, km = -1, bearing = 0;

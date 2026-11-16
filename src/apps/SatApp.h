@@ -11,6 +11,8 @@
 #include "core/Net.h"
 #include "core/Station.h"
 #include "core/Storage.h"
+#include "core/Alarms.h"
+#include "core/Rig.h"
 #include "core/Ui.h"
 #include "lib/Sgp4.h"
 
@@ -42,7 +44,22 @@ public:
     }
 
     void onKey(const KeyEvent& k) override {
-        if (open_) return;
+        if (open_) {
+            if (k.ch == 'c' || k.ch == 'C') {
+                catTrack_ = !catTrack_ && freqs() != nullptr;
+                if (catTrack_) lastTuneMs_ = 0;
+            } else if ((k.ch == 'a' || k.ch == 'A') && !passes_.empty()) {
+                const sgp4::Pass& p = passes_[0];
+                char b[64];
+                snprintf(b, sizeof(b), "%s AOS az %03.0f max %.0f", ui::ascii(sat_.name).c_str(), p.aosAzimuth, p.maxElevation);
+                alarms::add(b, (long long)p.aos, 120);
+                status_ = T("Alarm set: 2 min before the pass");
+            } else {
+                return;
+            }
+            dirty = true;
+            return;
+        }
         if (k.ch == 'u' || k.ch == 'U') {
             if (!net::connected()) status_ = T("No WiFi connection");
             else phase_ = DOWNLOAD_PENDING;
@@ -67,6 +84,15 @@ public:
             computePasses();
             phase_ = IDLE;
             dirty = true;
+        }
+        if (open_ && catTrack_ && now - lastTuneMs_ >= 2000) {     // the radio follows the Doppler shift
+            lastTuneMs_ = now;
+            double lat, lon;
+            const Freqs* f = freqs();
+            if (f && station::position(lat, lon) && net::timeValid()) {
+                sgp4::Look l = sgp4::look(sat_, (double)time(nullptr), lat, lon);
+                if (l.valid) rig::tune(f->down + sgp4::dopplerHz(l.rangeRateKmS, f->down) / 1e6, "");
+            }
         }
         if (open_ && now - lastMs_ >= 1000) {   // live position
             lastMs_ = now;
@@ -191,8 +217,14 @@ private:
             } else {
                 snprintf(line, sizeof(line), "Az %03.0f  El %+.0f  %.0f km", now.azimuth, now.elevation, now.rangeKm);
                 ui::text(6, ui::BODY_Y + 20, line, now.elevation > 0 ? ui::C_OK : ui::C_TEXT, 1.5);
-                snprintf(line, sizeof(line), "Doppler  2m %+.1f   70cm %+.1f kHz",
-                         sgp4::dopplerHz(now.rangeRateKmS, 145.9) / 1000, sgp4::dopplerHz(now.rangeRateKmS, 435.5) / 1000);
+                if (const Freqs* f = freqs()) {
+                    // the downlink we hear moves with the Doppler shift; the uplink must move the other way
+                    snprintf(line, sizeof(line), "Dn %.3f%s Up %.3f", f->down + sgp4::dopplerHz(now.rangeRateKmS, f->down) / 1e6,
+                             catTrack_ ? "*" : "", f->up > 0 ? f->up - sgp4::dopplerHz(now.rangeRateKmS, f->up) / 1e6 : 0.0);
+                } else {
+                    snprintf(line, sizeof(line), "Doppler  2m %+.1f   70cm %+.1f kHz",
+                             sgp4::dopplerHz(now.rangeRateKmS, 145.9) / 1000, sgp4::dopplerHz(now.rangeRateKmS, 435.5) / 1000);
+                }
                 ui::text(6, ui::BODY_Y + 36, line, now.elevation > 0 ? ui::C_TEXT : ui::C_DIM);
             }
             if (phase_ == PASSES_PENDING) {
@@ -216,8 +248,33 @@ private:
                 }
             }
         }
-        ui::footer(T("` back to the list"));
+        if (!status_.empty()) {
+            ui::footer(status_.c_str());
+            status_.clear();
+        } else {
+            ui::footer(freqs() ? T("C radio follows Doppler  A alarm") : T("A alarm   ` back to the list"));
+        }
     }
+
+    // Frequencies of well-known satellites (MHz), matched by name.
+    struct Freqs {
+        const char* name;
+        double down, up;
+        const char* tone;
+    };
+    const Freqs* freqs() const {
+        static const Freqs table[] = {
+                {"ISS", 145.800, 145.990, "67.0"}, {"SO-50", 436.795, 145.850, "67.0"}, {"AO-91", 145.960, 435.250, "67.0"},
+                {"PO-101", 145.900, 437.500, "141.3"}, {"AO-27", 436.795, 145.850, ""}, {"RS-44", 435.640, 145.965, ""},
+                {"IO-117", 435.310, 435.310, ""}, {"AO-123", 435.400, 145.850, ""}, {"SO-124", 436.400, 145.875, ""},
+                {"SO-125", 436.100, 145.850, ""}};
+        std::string n = ui::ascii(sat_.name);
+        for (const Freqs& f : table)
+            if (n.find(f.name) != std::string::npos) return &f;
+        return nullptr;
+    }
+    bool catTrack_ = false;
+    uint32_t lastTuneMs_ = 0;
 
     std::vector<Entry> entries_;
     std::vector<sgp4::Pass> passes_;

@@ -35,4 +35,30 @@ inline Times compute(int year, int month, int day, double lat, double lon) {
     return t;
 }
 
+
+// The point where the sun is overhead at `unixSec` (UTC), for the day/night line.
+inline void subsolar(double unixSec, double& lat, double& lon) {
+    const double pi = 3.14159265358979323846;
+    double days = unixSec / 86400.0;
+    double dayOfYear = fmod(days - 10957.0, 365.2422);          // days since 2000-01-01, within the year
+    if (dayOfYear < 0) dayOfYear += 365.2422;
+    double hours = fmod(unixSec, 86400.0) / 3600.0;
+    double g = 2.0 * pi / 365.0 * (dayOfYear - 1 + (hours - 12) / 24);
+    double eqTime = 229.18 * (0.000075 + 0.001868 * cos(g) - 0.032077 * sin(g) - 0.014615 * cos(2 * g) - 0.040849 * sin(2 * g));
+    double decl = 0.006918 - 0.399912 * cos(g) + 0.070257 * sin(g) - 0.006758 * cos(2 * g) + 0.000907 * sin(2 * g) -
+                  0.002697 * cos(3 * g) + 0.00148 * sin(3 * g);
+    lat = decl * 180.0 / pi;
+    lon = -15.0 * (hours - 12.0 + eqTime / 60.0);
+    while (lon < -180) lon += 360;
+    while (lon > 180) lon -= 360;
+}
+
+// Latitude of the day/night line at longitude `lon`, for a subsolar point.
+inline double terminatorLat(double lon, double sunLat, double sunLon) {
+    const double d2r = 3.14159265358979323846 / 180.0;
+    double t = tan(sunLat * d2r);
+    if (fabs(t) < 1e-6) t = 1e-6;
+    return atan(-cos((lon - sunLon) * d2r) / t) / d2r;
+}
+
 }  // namespace sun

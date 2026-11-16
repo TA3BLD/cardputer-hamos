@@ -146,7 +146,6 @@ void begin() {
 
 void statusBar(const char* title) {
     rect(0, 0, W, STATUS_H, C_BAR);
-    drawText(notice.empty() ? std::string(title) : notice, 4, STATUS_H / 2, 1, LEFT, true, notice.empty() ? C_TEXT : C_NOTICE, C_BAR);
 
     char right[48];
     char clock[8] = "--:--";
@@ -165,6 +164,15 @@ void statusBar(const char* title) {
     snprintf(right, sizeof(right), "%sz%s%s%s %d%%", clock, unread, gps::hasFix() ? " GPS" : "",
              net::connected() ? " WiFi" : "", (int)M5Cardputer.Power.getBatteryLevel());
     drawText(right, W - 4, STATUS_H / 2, 1, RIGHT, true, C_TEXT, C_BAR);
+    // The title or notice on the left, cut to the room left of the clock.
+    std::string left = notice.empty() ? std::string(title) : notice;
+    size_t room = (size_t)((W - 8 - (int)strlen(right) * 6 - 6) / 6), n = 0, cut = 0;
+    while (cut < left.size() && n < room) {
+        unsigned char c = (unsigned char)left[cut];
+        cut += c >= 0xF0 ? 4 : c >= 0xE0 ? 3 : c >= 0xC0 ? 2 : 1;
+        n++;
+    }
+    drawText(left.substr(0, cut), 4, STATUS_H / 2, 1, LEFT, true, notice.empty() ? C_TEXT : C_NOTICE, C_BAR);
 }
 
 void footer(const char* hint) {
