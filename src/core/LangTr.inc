@@ -599,3 +599,5 @@
 {"Alarm set: 2 min before the pass", "Alarm: geçişten 2 dk önce"},
 {"C radio follows Doppler  A alarm", "C telsiz Doppler'i izler  A alarm"},
 {"A alarm   ` back to the list", "A alarm   ` listeye dön"},
+{"ENTER reply  C CQ  T TX  H halt  M FT4", "ENTER cevap  C CQ  T TX  H dur  M FT4"},
+{"FT4 dial MHz", "FT4 frekans MHz"},

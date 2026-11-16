@@ -70,6 +70,7 @@ inline const std::vector<Field>& fields() {
             {"rig_port", "Rig port", "4532", 5, false, false, settings::RIG},
             {"ft8_dial", "FT8 dial MHz", "14.074", 8, false, false, settings::NONE},
             {"ft8_tx_hz", "FT8 TX audio Hz", "1500", 4, false, false, settings::NONE},
+            {"ft4_dial", "FT4 dial MHz", "14.080", 8, false, false, settings::NONE},
             {"wsjtx_on", "WSJT-X link 0/1", "0", 1, false, false, settings::FT8},
             {"wsjtx_port", "WSJT-X UDP port", "2237", 5, false, false, settings::FT8},
             {"pota_ref", "POTA park ref", "", 12, true, false, settings::NONE},

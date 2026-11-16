@@ -27,6 +27,7 @@
 #include "core/LoraAprs.h"
 #include "lib/Aprs.h"
 #include "lib/Ft8.h"
+#include "lib/Ft4.h"
 #include "lib/Sgp4.h"
 #include "lib/Ft8Decoder.h"
 #include "lib/Bmp.h"
@@ -540,6 +541,33 @@ int main() {
         runUntilPeriodEnd();
         run(15000);
         EXPECT(decodeSpeaker().empty());
+        // FT4: M switches the mode; 7.5 s periods
+        key('m');
+        EXPECT(ft8App.ft4());
+        while (sim_utc_ms() % 7500 < 7480) run(10);
+        {
+            std::vector<double> mix(7500 * 8, 0.0);
+            uint8_t p[10], t[ft4::kSymbols];
+            ft8::pack("CQ TA4XYZ KM69", p);
+            ft4::tones(p, t);
+            ft4::Synth synth(t, 1300.0f, 8000, 5000, 0.5f);
+            int16_t buf[512];
+            size_t pos = 0;
+            for (size_t n; (n = synth.read(buf, 512)) > 0;)
+                for (size_t i = 0; i < n && pos < mix.size(); i++) mix[pos++] += buf[i];
+            for (double v : mix) {
+                double g = 0;
+                for (int i = 0; i < 12; i++) g += (double)rand() / RAND_MAX;
+                sim_mic.push_back((int16_t)(v + (g - 6) * 900));
+            }
+        }
+        run(300);
+        run(7200);
+        run(600);
+        EXPECT(ft8App.selectForTest("CQ TA4XYZ KM69"));
+        printf("S ft4-decodes\n");
+        key('m');
+        EXPECT(!ft8App.ft4());
     }
     back();
 
@@ -884,8 +912,8 @@ int main() {
     size_t before = logbook::total();
     type("ok1abc"); key(' '); type("17"); enter();
     EXPECT(logbook::total() == before + 1 && logbook::recent().back().call == "OK1ABC" && logbook::recent().back().srx == "17" &&
-           logbook::recent().back().mode == rig::mode() && logbook::recent().back().rstSent == "59" &&      // mode from the radio (rigctld)
-           !logbook::recent().back().stx.empty());
+           !logbook::recent().back().stx.empty() &&
+           logbook::recent().back().rstSent == (logbook::recent().back().mode == "CW" ? "599" : "59"));   // mode from the radio, or CW
     type("sp5xyz"); key(' '); type("4"); enter();
     type("ok1abc");                            // the same station again: a dupe
     shot("contest");

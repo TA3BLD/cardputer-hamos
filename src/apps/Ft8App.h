@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "core/App.h"
+#include "lib/Ft4.h"
 #include "core/Lang.h"
 #include "core/PskReporter.h"
 #include "core/Watch.h"
@@ -29,6 +30,58 @@
 class Ft8App : public App {
 public:
     const char* name() const override { return "FT8"; }
+
+    // FT8 (15 s) or FT4 (7.5 s): the decoder, resampler and transmit audio of one mode.
+    struct Engine {
+        virtual ~Engine() {}
+        virtual const char* mode() const = 0;
+        virtual int periodMs() const = 0;
+        virtual int txEndMs() const = 0;            // the transmission is over by then
+        virtual size_t memoryNeeded(int osr) const = 0;
+        virtual bool begin(int osr) = 0;
+        virtual int freqOsr() const = 0;
+        virtual void reset() = 0;
+        virtual void feed8k(const int16_t* in, size_t n) = 0;
+        virtual bool full() const = 0;
+        virtual void startDecode() = 0;
+        virtual bool step(std::vector<ft8::Decoded>& out, int n, const std::string& me) = 0;
+        virtual void transmit(const uint8_t payload[10], float hz, float lead) = 0;
+        virtual size_t read(int16_t* out, size_t max) = 0;
+    };
+    template <class D, class R, class S, int kTones, void (*Tones)(const uint8_t*, uint8_t*)>
+    struct EngineOf : Engine {
+        const char* name_;
+        int period_, txEnd_;
+        D decoder;
+        R resampler;
+        std::unique_ptr<S> synth;
+        EngineOf(const char* n, int p, int e) : name_(n), period_(p), txEnd_(e) {}
+        const char* mode() const override { return name_; }
+        int periodMs() const override { return period_; }
+        int txEndMs() const override { return txEnd_; }
+        size_t memoryNeeded(int osr) const override { return D::memoryNeeded(osr); }
+        bool begin(int osr) override { return decoder.begin(osr); }
+        int freqOsr() const override { return decoder.freqOsr(); }
+        void reset() override {
+            decoder.reset();
+            resampler = R();
+        }
+        void feed8k(const int16_t* in, size_t n) override {
+            int16_t buf[audio::BLOCK * 2];
+            size_t m = resampler.process(in, n, buf);
+            decoder.feed(buf, m);
+        }
+        bool full() const override { return decoder.full(); }
+        void startDecode() override { decoder.startDecode(); }
+        bool step(std::vector<ft8::Decoded>& out, int n, const std::string& me) override { return decoder.step(out, n, me); }
+        void transmit(const uint8_t payload[10], float hz, float lead) override {
+            uint8_t t[kTones];
+            Tones(payload, t);
+            synth.reset(new S(t, hz, 8000, 14000, lead > 0 ? lead : 0));
+        }
+        size_t read(int16_t* out, size_t max) override { return synth ? synth->read(out, max) : 0; }
+    };
+    bool ft4() const { return ft4_; }
     uint16_t color() const override { return 0xF81F; }
 
     void onEnter() override {
@@ -37,8 +90,9 @@ public:
         status_.clear();
         logbook::load();
         // The finer frequency grid needs about 180 KB; keep at least 60 KB for everything else.
-        int osr = sys::freeHeap() > ft8::Decoder::memoryNeeded(2) + 60000 ? 2 : 1;
-        decoder_.reset(new ft8::Decoder());
+        if (ft4_) decoder_.reset(new EngineOf<ft4::Decoder, ft4::Resampler, ft4::Synth, ft4::kSymbols, ft4::tones>("FT4", ft4::kPeriodMs, 6400));
+        else decoder_.reset(new EngineOf<ft8::Decoder, ft8::Resampler, ft8::Synth, ft8::kSymbols, ft8::tones>("FT8", 15000, 13000));
+        int osr = sys::freeHeap() > decoder_->memoryNeeded(2) + 60000 ? 2 : 1;
         if (!decoder_->begin(osr) && !(osr == 2 && decoder_->begin(1))) {
             decoder_.reset();
             status_ = T("Not enough memory for the decoder");
@@ -78,6 +132,12 @@ public:
         } else if (k.ch == 't' || k.ch == 'T') {
             if (!txEnabled_ && qso_.message().empty()) { status_ = T("Nothing to send: ENTER on a CQ, or C"); }
             else txEnabled_ = !txEnabled_;
+        } else if (k.ch == 'm' || k.ch == 'M') {          // FT8 <-> FT4
+            onExit();
+            ft4_ = !ft4_;
+            lines_.clear();
+            selected_ = 0;
+            onEnter();
         } else if (k.ch == 'h' || k.ch == 'H') {
             txEnabled_ = false;
             qso_.stop();
@@ -94,8 +154,9 @@ public:
             return;
         }
         long long t = net::utcMillis();
-        long long period = t / 15000;
-        int ms = (int)(t % 15000);
+        int periodMs = decoder_->periodMs();
+        long long period = t / periodMs;
+        int ms = (int)(t % periodMs);
 
         if (period != period_) {
             finishDecoding();       // the last period's decodes decide what to send now
@@ -108,7 +169,7 @@ public:
             rx_ = false;
             startTransmit(ms);
         }
-        if (tx_ && !audio::playing() && ms > 13000) {
+        if (tx_ && !audio::playing() && ms > decoder_->txEndMs()) {
             tx_ = false;
             audio::startCapture(8000);
         }
@@ -116,9 +177,7 @@ public:
             for (int i = 0; i < 4; i++) {           // catch up if the loop was slow
                 const int16_t* block = audio::capture();
                 if (!block) break;
-                int16_t resampled[audio::BLOCK];
-                size_t n = resampler_.process(block, audio::BLOCK, resampled);
-                decoder_->feed(resampled, n);
+                decoder_->feed8k(block, audio::BLOCK);
             }
             if (decoder_->full()) {
                 rx_ = false;
@@ -148,12 +207,13 @@ public:
             return;
         }
         // Top line: period progress, receive / transmit, dial frequency.
-        int ms = (int)(net::utcMillis() % 15000);
+        int pms = decoder_->periodMs();
+        int ms = (int)(net::utcMillis() % pms);
         int barW = ui::W - 12;
         ui::fill(6, ui::BODY_Y + 2, barW, 4, ui::C_FOOT);
-        ui::fill(6, ui::BODY_Y + 2, barW * ms / 15000, 4, tx_ ? ui::C_ERR : rx_ ? ui::C_OK : ui::C_DIM);
+        ui::fill(6, ui::BODY_Y + 2, barW * ms / pms, 4, tx_ ? ui::C_ERR : rx_ ? ui::C_OK : ui::C_DIM);
         char line[64];
-        snprintf(line, sizeof(line), "%s %s MHz  %s  %s", tx_ ? "TX" : decoding_ ? "decoding" : rx_ ? "RX" : "--",
+        snprintf(line, sizeof(line), "%s %s %s MHz  %s  %s", decoder_->mode(), tx_ ? "TX" : decoding_ ? "decoding" : rx_ ? "RX" : "--",
                  dialMhz().c_str(), (period_ % 2) ? "odd" : "even", decoder_->freqOsr() == 2 ? "" : "(low memory)");
         ui::text(6, ui::BODY_Y + 8, line, tx_ ? ui::C_ERR : ui::C_DIM);
 
@@ -184,7 +244,7 @@ public:
         else if (!next.empty())
             ui::text(6, ui::BODY_Y + 95, std::string(txEnabled_ ? T("TX ") : T("off ")) + (txParity_ ? T("odd: ") : T("even: ")) + next,
                      txEnabled_ ? ui::C_NOTICE : ui::C_DIM);
-        ui::footer(txEnabled_ ? T("H halt   T pause   ENTER reply") : T("ENTER reply  C CQ  T TX on  H halt"));
+        ui::footer(txEnabled_ ? T("H halt   T pause   ENTER reply") : T("ENTER reply  C CQ  T TX  H halt  M FT4"));
     }
 
     // Simulator: select the newest decode that starts with `text`.
@@ -209,7 +269,10 @@ private:
         std::string from;
     };
 
-    std::string dialMhz() const { return rig::connected() ? rig::freqMhz() : config::get("ft8_dial", "14.074"); }
+    std::string dialMhz() const {
+        if (rig::connected()) return rig::freqMhz();
+        return ft4_ ? config::get("ft4_dial", "14.080") : config::get("ft8_dial", "14.074");
+    }
 
     bool canTransmit() {
         if (qso_.myCall.empty()) { status_ = T("Set your callsign in Settings first"); return false; }
@@ -229,22 +292,19 @@ private:
         if (ms > 1500) return;              // joined in the middle: wait for the next period
         if (!audio::capturing()) audio::startCapture(8000);
         decoder_->reset();
-        resampler_ = ft8::Resampler();
         rx_ = true;
     }
 
     void startTransmit(int ms) {
         std::string text = qso_.message();
-        uint8_t payload[10], tones[ft8::kSymbols];
+        uint8_t payload[10];
         if (!ft8::pack(text, payload)) {
             status_ = T("Cannot encode: ") + text;
             txEnabled_ = false;
             return;
         }
-        ft8::tones(payload, tones);
-        float lead = 0.5f - ms / 1000.0f;
-        synth_.reset(new ft8::Synth(tones, txHz_, 8000, 14000, lead > 0 ? lead : 0));
-        audio::play([](int16_t* out, size_t max, void* self) { return ((Ft8App*)self)->synth_->read(out, max); }, this, 8000);
+        decoder_->transmit(payload, txHz_, 0.5f - ms / 1000.0f);
+        audio::play([](int16_t* out, size_t max, void* self) { return ((Ft8App*)self)->decoder_->read(out, max); }, this, 8000);
         audio::markTransmit();
         tx_ = true;
         lastTxPeriod_ = period_;
@@ -286,8 +346,8 @@ private:
             }
             if (!l.from.empty()) {              // to PSK Reporter (when switched on)
                 std::string loc = !w.empty() && ft8::isGrid4(w.back()) && w.back() != "RR73" ? w.back() : "";
-                pskr::add(l.from, loc, "FT8", (uint32_t)(atof(dialMhz().c_str()) * 1e6 + d.freqHz), d.snr);
-                watch::check(l.from, atof(dialMhz().c_str()) * 1000, "", "FT8", d.text);
+                pskr::add(l.from, loc, decoder_->mode(), (uint32_t)(atof(dialMhz().c_str()) * 1e6 + d.freqHz), d.snr);
+                watch::check(l.from, atof(dialMhz().c_str()) * 1000, "", decoder_->mode(), d.text);
             }
             const dxcc::Entity* e = dxcc::lookup(l.from);
             if (e) {
@@ -334,7 +394,7 @@ private:
         adif::Qso q;
         q.call = qso_.dxCall;
         q.grid = qso_.dxGrid;
-        q.mode = "FT8";
+        q.mode = ft4_ ? "FT4" : "FT8";
         q.freq = dialMhz();
         q.rstSent = ft8::Qso::report(qso_.reportSent);
         q.rstRcvd = ft8::Qso::report(qso_.reportRcvd);
@@ -360,9 +420,8 @@ private:
         }
     }
 
-    std::unique_ptr<ft8::Decoder> decoder_;
-    std::unique_ptr<ft8::Synth> synth_;
-    ft8::Resampler resampler_;
+    std::unique_ptr<Engine> decoder_;
+    bool ft4_ = false;
     ft8::Qso qso_;
     std::vector<ft8::Decoded> fresh_;
     std::vector<Line> lines_;
