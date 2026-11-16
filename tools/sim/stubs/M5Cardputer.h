@@ -65,6 +65,8 @@ inline std::vector<int16_t> sim_speaker;
 struct SimSpeaker {
     std::deque<double> ends;            // when each queued piece finishes (sim ms)
     int tones = 0;                      // tone() calls, for the keyer checks
+    uint8_t volume = 128;
+    void setVolume(uint8_t v) { volume = v; }
     void tone(float, uint32_t) { tones++; }
     bool begin() { return true; }
     void end() {}

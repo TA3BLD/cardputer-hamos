@@ -1153,7 +1153,7 @@ int main() {
     {
         back();                                // to the launcher
         json::Object r = usbCall("\"cmd\":\"hello\"");
-        EXPECT(r.flag("ok") && has(r, "\"callsign\":\"TA3BLD\"") && has(r, "\"apps\":[\"Logbook\",\"Mesh\"") && has(r, "\"Settings\",\"Update\",\"Emergency\"]"));
+        EXPECT(r.flag("ok") && has(r, "\"callsign\":\"TA3BLD\"") && has(r, "\"apps\":[\"Logbook\",\"Mesh\"") && has(r, "\"Settings\",\"Update\",\"Emergency\",\"Self test\",\"Audio levels\",\"Profiles\",\"Setup wizard\"]"));
         EXPECT(!usbCall("\"cmd\":\"nonsense\"").flag("ok") && !usbCall("\"cmd\":\"files.read\",\"path\":\"../x\"").flag("ok"));
         // Settings
         r = usbCall("\"cmd\":\"config.list\"");
@@ -1355,6 +1355,76 @@ int main() {
         key('a');                              // siren off
         key('x'); key('y');
         EXPECT(emergency::state() == emergency::State::Idle);
+        back();
+    }
+
+    // ---- Launcher: search, groups, favourites ----
+    {
+        auto open = [](const char* name) {
+            usb::handle(std::string("{\"id\":1,\"cmd\":\"app.open\",\"name\":\"") + name + "\"}");
+            run(200);
+        };
+        open("home");
+        type("ft"); run(100);
+        shot("launcher-search");
+        enter();
+        EXPECT(std::string(current->name()) == "FT8");
+        back();
+        back();                                // clears the search
+        Keys fnEnter;
+        fnEnter.fn = true;
+        fnEnter.enter = true;
+        press(fnEnter);                        // the selected tile (still FT8) becomes a favourite
+        EXPECT(config::get("favorites") == "4");
+        tab();                                 // Favourites group
+        enter();
+        EXPECT(std::string(current->name()) == "FT8");
+        back();
+        for (int i = 0; i < 4; i++) tab();     // Mesh/APRS group
+        shot("launcher-group");
+        back();                                // back to All
+
+        // Setup wizard: walk through, keeping every answer
+        open("Setup wizard");
+        shot("setup");
+        for (int i = 0; i < 8; i++) enter();
+        EXPECT(current == &launcher && config::get("setup_done") == "1" && config::get("callsign") == "TA3BLD" &&
+               config::get("lang") == "en" && config::get("lora_mode") == "mesh");
+
+        // Profiles: Field, then back to Home
+        open("Profiles");
+        key('.'); enter(); key('y');
+        EXPECT(config::get("profile") == "1" && config::get("brightness") == "90" && config::get("lora_aprs_beacon") == "10");
+        shot("profiles");
+        key(';'); enter(); key('y');
+        EXPECT(config::get("profile") == "0" && config::get("lora_mode") == "mesh" && mesh::ready());
+        key('s');
+        {
+            std::string text;
+            EXPECT(storage::readFile("/HamOS/profiles/1.txt", text) && text.find("brightness=160") != std::string::npos);
+        }
+        back();
+
+        // Self test
+        open("Self test");
+        for (int i = 0; i < 40 && !selfTestApp.finished(); i++) run(100);
+        key('y');
+        bool sdOk = false;
+        for (const auto& r : selfTestApp.rows()) sdOk |= r.name == "SD card" && r.state == SelfTestApp::OK;
+        EXPECT(selfTestApp.finished() && sdOk && selfTestApp.rows().size() >= 12);
+        shot("self-test");
+        back();
+
+        // Audio levels: a tone at about -20 dB
+        open("Audio levels");
+        for (int i = 0; i < 8000; i++) sim_mic.push_back((int16_t)(3300 * sin(i * 0.4)));
+        run(400);
+        shot("audio-levels");
+        tab();
+        run(300);
+        EXPECT(audio::playing());
+        tab();
+        EXPECT(!audio::playing());
         back();
     }
 

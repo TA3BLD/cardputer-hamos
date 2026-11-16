@@ -3,12 +3,14 @@
 
 namespace sys {
 
-size_t freeHeap() {
 #ifdef HAMOS_SIM
-    return 300000;
+size_t freeHeap() { return 300000; }
+size_t largestBlock() { return 110000; }
+size_t minFreeHeap() { return 240000; }
 #else
-    return ESP.getFreeHeap();
+size_t freeHeap() { return ESP.getFreeHeap(); }
+size_t largestBlock() { return ESP.getMaxAllocHeap(); }
+size_t minFreeHeap() { return ESP.getMinFreeHeap(); }
 #endif
-}
 
 }  // namespace sys

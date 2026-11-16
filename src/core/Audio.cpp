@@ -1,4 +1,6 @@
 #include "Audio.h"
+#include <cstdlib>
+#include "Config.h"
 #include <M5Cardputer.h>
 
 namespace audio {
@@ -36,6 +38,7 @@ void stopCapture() {
     if (!isCapturing) return;
     M5Cardputer.Mic.end();
     M5Cardputer.Speaker.begin();
+    M5Cardputer.Speaker.setVolume((uint8_t)atoi(config::get("volume", "160").c_str()));
     isCapturing = false;
 }
 

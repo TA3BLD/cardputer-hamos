@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "apps/AprsApp.h"
+#include "apps/AudioLevelApp.h"
 #include "apps/AwardsApp.h"
 #include "apps/CalcApp.h"
 #include "apps/CallbookApp.h"
@@ -26,9 +27,12 @@
 #include "apps/MorseApp.h"
 #include "apps/PskApp.h"
 #include "apps/PotaApp.h"
+#include "apps/ProfilesApp.h"
 #include "apps/PskrApp.h"
 #include "apps/RadioApp.h"
 #include "apps/RangeApp.h"
+#include "apps/SelfTestApp.h"
+#include "apps/SetupApp.h"
 #include "apps/ReferenceApp.h"
 #include "apps/RepeaterApp.h"
 #include "apps/SatApp.h"
@@ -77,6 +81,10 @@ static WxApp wxApp;
 static EmergencyApp emergencyApp;
 static AwardsApp awardsApp;
 static ContestApp contestApp;
+static SetupApp setupApp;
+static ProfilesApp profilesApp;
+static SelfTestApp selfTestApp;
+static AudioLevelApp audioLevelApp;
 static AprsApp aprsApp;
 static MapApp mapApp;
 static DxClusterApp dxClusterApp;
@@ -98,16 +106,65 @@ static GuideApp guideApp;
 static CountryApp countryApp;
 static SettingsApp settingsApp;
 static UpdateApp updateApp;
-static const std::vector<App*> apps = {&logbookApp, &meshApp,     &aprsApp,    &mapApp,     &ft8App,     &dxClusterApp,
-                                       &potaApp,    &pskrApp,     &callbookApp, &logSyncApp,
-                                       &radioApp,   &cwKeyerApp,  &voiceApp,    &rangeApp,  &wxApp,
-                                       &contestApp, &awardsApp,
-                                       &wsjtxApp,   &solarApp,    &satApp,     &gpsApp,     &digiApp,    &sstvApp,
-                                       &pskApp,     &locatorApp,  &repeaterApp, &calcApp,   &morseApp,   &clockApp,
-                                       &referenceApp, &guideApp,  &countryApp, &settingsApp, &updateApp, &emergencyApp};
-// -----------------------------------------------------------------------------
-
-static Launcher launcher(apps);
+// Each app with its launcher group, in launcher order.
+struct Entry {
+    App* app;
+    int group;
+};
+static const Entry registry[] = {
+        {&logbookApp, Launcher::LOG},
+        {&meshApp, Launcher::MESH},
+        {&aprsApp, Launcher::MESH},
+        {&mapApp, Launcher::MESH},
+        {&ft8App, Launcher::DIGITAL},
+        {&dxClusterApp, Launcher::RADIO},
+        {&potaApp, Launcher::RADIO},
+        {&pskrApp, Launcher::RADIO},
+        {&callbookApp, Launcher::LOG},
+        {&logSyncApp, Launcher::LOG},
+        {&radioApp, Launcher::RADIO},
+        {&cwKeyerApp, Launcher::RADIO},
+        {&voiceApp, Launcher::RADIO},
+        {&rangeApp, Launcher::MESH},
+        {&wxApp, Launcher::MESH},
+        {&contestApp, Launcher::LOG},
+        {&awardsApp, Launcher::LOG},
+        {&wsjtxApp, Launcher::DIGITAL},
+        {&solarApp, Launcher::RADIO},
+        {&satApp, Launcher::RADIO},
+        {&gpsApp, Launcher::TOOLS},
+        {&digiApp, Launcher::DIGITAL},
+        {&sstvApp, Launcher::DIGITAL},
+        {&pskApp, Launcher::DIGITAL},
+        {&locatorApp, Launcher::TOOLS},
+        {&repeaterApp, Launcher::RADIO},
+        {&calcApp, Launcher::TOOLS},
+        {&morseApp, Launcher::TOOLS},
+        {&clockApp, Launcher::TOOLS},
+        {&referenceApp, Launcher::INFO},
+        {&guideApp, Launcher::INFO},
+        {&countryApp, Launcher::INFO},
+        {&settingsApp, Launcher::TOOLS},
+        {&updateApp, Launcher::TOOLS},
+        {&emergencyApp, Launcher::TOOLS},
+        {&selfTestApp, Launcher::TOOLS},
+        {&audioLevelApp, Launcher::DIGITAL},
+        {&profilesApp, Launcher::TOOLS},
+        {&setupApp, Launcher::TOOLS},
+};
+static std::vector<App*> listApps() {
+    std::vector<App*> v;
+    for (const Entry& e : registry) v.push_back(e.app);
+    return v;
+}
+static std::vector<int> listGroups() {
+    std::vector<int> v;
+    for (const Entry& e : registry) v.push_back(e.group);
+    return v;
+}
+static const std::vector<App*> apps = listApps();
+static const std::vector<int> appGroups = listGroups();
+static Launcher launcher(apps, appGroups);
 static App* current = &launcher;
 static uint32_t lastStatusMs = 0;
 
@@ -272,6 +329,9 @@ void setup() {
     std::string call = config::get("callsign");
     if (!call.empty()) ui::textCentered(85, T("73 de ") + call, ui::C_OK, 1.5);
     delay(800);
+    M5Cardputer.Speaker.setVolume((uint8_t)atoi(config::get("volume", "160").c_str()));
+    // First start: no callsign yet -> the setup wizard.
+    if (config::get("callsign").empty() && config::get("setup_done") != "1") current = &setupApp;
     current->onEnter();
 }
 
@@ -367,6 +427,10 @@ void loop() {
     if (lastStatusMs == 0 || now - lastStatusMs >= 1000) {
         lastStatusMs = now ? now : 1;
         ui::statusBar(current->name());
+    }
+    if (current == &setupApp && setupApp.finished) {
+        setupApp.finished = false;
+        switchTo(&launcher);
     }
     if (current->dirty) {
         current->dirty = false;
