@@ -7,6 +7,8 @@
 #include <WiFiUdp.h>
 #include "core/Log.h"
 #include "core/Keyer.h"
+#include "core/Tracker.h"
+#include "core/Mailbox.h"
 #include "core/Watch.h"
 #include "core/Openings.h"
 #include "core/Alarms.h"
@@ -1562,6 +1564,59 @@ int main() {
         enter();
         EXPECT(cwSimApp.scoreForTest() == 2);
         shot("cw-practice");
+        back();
+    }
+
+    // ---- Net control, message form, tracker, mesh mailbox ----
+    {
+        auto open = [](const char* name) {
+            usb::handle(std::string("{\"id\":1,\"cmd\":\"app.open\",\"name\":\"") + name + "\"}");
+            run(200);
+        };
+        auto lastMine = []() {
+            for (size_t i = mesh::messages().size(); i-- > 0;)
+                if (mesh::messages()[i].mine) return mesh::messages()[i].text;
+            return std::string();
+        };
+        open("Net control");
+        type("ta1abc"); enter();
+        type("dl1xyz traffic"); enter();
+        type("ta1abc"); enter();               // the same station again: once
+        EXPECT(netApp.stationsForTest().size() == 2 && netApp.stationsForTest()[1].traffic);
+        shot("net-control");
+        back();
+
+        open("Message form");
+        type("izmir"); tab(); tab(); type("afad izmir"); tab(); tab();
+        type("kopru kapali 3 yarali"); tab(); type("ali");
+        Keys fnS;
+        fnS.fn = true;
+        fnS.word = {'s'};
+        press(fnS);
+        EXPECT(lastMine().find("NR 1 ROUTINE TA3BLD 4 IZMIR") == 0 && lastMine().find("TO AFAD IZMIR BT KOPRU KAPALI 3 YARALI BT ALI AR") != std::string::npos);
+        EXPECT(storage::exists("/HamOS/msgs/1.txt"));
+        shot("message-form");
+        back();
+
+        open("Tracker");
+        key('s');
+        run(500);
+        EXPECT(tracker::running() && tracker::sent() == 1);
+        shot("tracker");
+        key('s');
+
+        // Mail for a node that is away: kept, then delivered when it is heard
+        config::set("mesh_mailbox", "1");
+        fromNode(0xa1b2c3d4, meshtastic::PORT_TEXT, "@!0deadbee yarin 10da toplanti");
+        run(200);
+        EXPECT(mailbox::waiting().size() == 1 && mailbox::waiting()[0].to == 0x0deadbee);
+        tab();
+        shot("mailbox");
+        announce(0x0deadbee, "Dead Bee", "DBEE", 38.40, 27.10, 1);
+        run(300);
+        EXPECT(mailbox::waiting().empty() && mailbox::delivered() == 1 && lastMine().find("[mail from XYZ") == 0 &&
+               lastMine().find("yarin 10da toplanti") != std::string::npos);
+        config::set("mesh_mailbox", "0");
         back();
     }
 

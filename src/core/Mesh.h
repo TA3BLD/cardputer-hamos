@@ -58,6 +58,7 @@ uint32_t messagesAdded();
 // port addressed to us or to everyone.
 using PortHandler = void (*)(uint32_t from, uint32_t to, const std::string& payload, float snr, float rssi);
 void onPort(int portnum, PortHandler handler);
+bool sendPosition();           // our GPS position now (false without a fix)
 uint32_t sendPort(int portnum, const std::string& payload, uint32_t to = BROADCAST);     // 0: not queued      // counts every message since start (the list keeps only the newest)
 const std::vector<Node>& nodes();
 std::string nodeName(uint32_t id, bool shortName = false);

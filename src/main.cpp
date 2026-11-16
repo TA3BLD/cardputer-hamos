@@ -25,12 +25,14 @@
 #include "apps/LogSyncApp.h"
 #include "apps/MapApp.h"
 #include "apps/MeshApp.h"
+#include "apps/NetApp.h"
 #include "apps/MorseApp.h"
 #include "apps/PskApp.h"
 #include "apps/PotaApp.h"
 #include "apps/ProfilesApp.h"
 #include "apps/PskrApp.h"
 #include "apps/RadioApp.h"
+#include "apps/RadiogramApp.h"
 #include "apps/RangeApp.h"
 #include "apps/SelfTestApp.h"
 #include "apps/SetupApp.h"
@@ -40,6 +42,7 @@
 #include "apps/SettingsApp.h"
 #include "apps/SolarApp.h"
 #include "apps/SstvApp.h"
+#include "apps/TrackerApp.h"
 #include "apps/UpdateApp.h"
 #include "apps/WatchApp.h"
 #include "apps/WsprApp.h"
@@ -56,12 +59,14 @@
 #include "core/Keyer.h"
 #include "core/Lang.h"
 #include "core/LoraAprs.h"
+#include "core/Mailbox.h"
 #include "core/Mesh.h"
 #include "core/Net.h"
 #include "core/Openings.h"
 #include "core/RangeTest.h"
 #include "core/PskReporter.h"
 #include "core/Rig.h"
+#include "core/Tracker.h"
 #include "core/Storage.h"
 #include "core/Ui.h"
 #include "core/Updater.h"
@@ -94,6 +99,9 @@ static AudioLevelApp audioLevelApp;
 static WatchApp watchApp;
 static WsprApp wsprApp;
 static CwSimApp cwSimApp;
+static NetApp netApp;
+static RadiogramApp radiogramApp;
+static TrackerApp trackerApp;
 static AprsApp aprsApp;
 static MapApp mapApp;
 static DxClusterApp dxClusterApp;
@@ -163,6 +171,9 @@ static const Entry registry[] = {
         {&watchApp, Launcher::RADIO},
         {&wsprApp, Launcher::DIGITAL},
         {&cwSimApp, Launcher::TOOLS},
+        {&netApp, Launcher::LOG},
+        {&radiogramApp, Launcher::MESH},
+        {&trackerApp, Launcher::MESH},
 };
 static std::vector<App*> listApps() {
     std::vector<App*> v;
@@ -360,6 +371,8 @@ void loop() {
     ble::tick();
     rangetest::tick();
     weather::tick();
+    tracker::tick();
+    mailbox::tick();
     emergency::tick();
     watch::tick(current == &launcher);
     openings::tick(current == &launcher);

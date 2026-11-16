@@ -8,6 +8,7 @@
 #include "lib/Bme280.h"
 #include "lib/Emergency.h"
 #include "lib/Awards.h"
+#include "lib/SmartBeacon.h"
 
 static int failures = 0;
 #define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); failures++; } } while (0)
@@ -61,6 +62,16 @@ int main(int argc, char** argv) {
           "SOS TA3BLD 38.42370,27.14280 KM38nk bat 87% #2 bacak kirik");
     CHECK(sos::text("TA3BLD", false, 0, 0, "", -1, 1, "") == "SOS TA3BLD #1");
     CHECK(sos::sendTime(0) == 0 && sos::sendTime(1) == 60 && sos::sendTime(5) == 300 && sos::sendTime(6) == 600 && sos::sendTime(7) == 900);
+
+    // SmartBeaconing
+    {
+        smartbeacon::Params p;
+        CHECK(smartbeacon::rate(p, 0) == 1800 && smartbeacon::rate(p, 120) == 60 && std::fabs(smartbeacon::rate(p, 45) - 120) < 1e-9);
+        CHECK(!smartbeacon::due(p, 100, 45, 90, 90) && smartbeacon::due(p, 121, 45, 90, 90));
+        CHECK(smartbeacon::due(p, 20, 45, 180, 90) && !smartbeacon::due(p, 10, 45, 180, 90));     // corner, but not too soon
+        CHECK(!smartbeacon::due(p, 20, 45, 100, 90) && !smartbeacon::due(p, 600, 2, 270, 90));     // small turn; parked
+        CHECK(smartbeacon::due(p, 30, 50, 350, 50) && !smartbeacon::due(p, 30, 50, 350, 20));     // across north: 60 deg yes, 30 no
+    }
 
     // Awards
     CHECK(awards::provinceOf("Karşıyaka, İzmir") == 34 && awards::provinceOf("ISTANBUL") == 33 && awards::provinceOf("Şanlıurfa") == 62);

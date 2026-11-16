@@ -351,6 +351,12 @@ void onPort(int portnum, PortHandler handler) {
     hooks.push_back({portnum, handler});
 }
 
+bool sendPosition() {
+    if (!isReady || !gps::hasFix()) return false;
+    queuePosition();
+    return true;
+}
+
 uint32_t sendPort(int portnum, const std::string& payload, uint32_t to) {
     if (!isReady) return 0;
     Data d;
