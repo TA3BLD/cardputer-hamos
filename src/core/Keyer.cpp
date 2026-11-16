@@ -36,9 +36,11 @@ int tone() {
     return t < 200 || t > 2000 ? 700 : t;
 }
 
+bool practice = false;                  // the text being sent is sidetone only
+
 void key(bool down) {
     keyIsDown = down;
-    if (groveKey()) digitalWrite(cap::GROVE_1, down ? HIGH : LOW);
+    if (groveKey() && !practice) digitalWrite(cap::GROVE_1, down ? HIGH : LOW);
 }
 
 }  // namespace
@@ -62,12 +64,13 @@ const char* outputName() {
 
 bool paddle() { return config::get("grove_io") == "paddle"; }
 
-void send(const std::string& textIn) {
+void send(const std::string& textIn, bool sidetoneOnly) {
     std::string text;
     for (char c : textIn) text += (char)toupper((unsigned char)c);
     if (text.empty()) return;
+    practice = sidetoneOnly;
     int dot = morse::dotMs(wpm());
-    if (!groveKey() && rig::cwAvailable() && rig::connected()) {
+    if (!sidetoneOnly && !groveKey() && rig::cwAvailable() && rig::connected()) {
         rig::sendCw(text);
         // about 50 dots per word of 5 letters
         radioBusyUntil = millis() + (uint32_t)(text.size() * 10 * dot);

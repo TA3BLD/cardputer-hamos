@@ -13,7 +13,7 @@
 namespace keyer {
 
 const char* outputName();
-void send(const std::string& text);
+void send(const std::string& text, bool sidetoneOnly = false);     // sidetoneOnly: practice, never keys the radio
 void stop();
 bool busy();
 void tick();                    // from the main loop, every few milliseconds

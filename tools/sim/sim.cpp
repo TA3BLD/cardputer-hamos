@@ -1529,6 +1529,42 @@ int main() {
         config::set("watch", "");
     }
 
+    // ---- WSPR beacon and CW practice ----
+    {
+        auto open = [](const char* name) {
+            usb::handle(std::string("{\"id\":1,\"cmd\":\"app.open\",\"name\":\"") + name + "\"}");
+            run(200);
+        };
+        open("WSPR");
+        key('t');
+        bool sent = false;
+        for (int i = 0; i < 12500 && !sent; i++) {
+            run(10);
+            sent = audio::transmitting();
+        }
+        EXPECT(sent && (sim_utc_ms() % 120000) < 3000);
+        shot("wspr");
+        key('t');
+        EXPECT(!audio::playing());
+        sim_http["db1.wspr.live"] = R"({"meta":[],"data":[{"time":"2026-11-16 10:12:00","rx_sign":"DL1ABC","rx_loc":"JO31le","distance":2087,"snr":-21},
+            {"time":"2026-11-16 10:12:00","rx_sign":"K1JT","rx_loc":"FN20","distance":8251,"snr":-27}],"rows":2})";
+        key('h');
+        run(300);
+        shot("wspr-heard");
+        back();
+
+        open("CW practice");
+        for (int i = 0; i < 4000 && keyer::busy(); i++) run(10);
+        type(cwSimApp.callForTest().c_str());
+        enter();
+        for (int i = 0; i < 6000 && keyer::busy(); i++) run(10);
+        type(cwSimApp.exchangeForTest().c_str());
+        enter();
+        EXPECT(cwSimApp.scoreForTest() == 2);
+        shot("cw-practice");
+        back();
+    }
+
     // ---- The same screens in Turkish (the device's default language) ----
     {
         config::set("lang", "tr");

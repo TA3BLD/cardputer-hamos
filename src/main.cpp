@@ -11,6 +11,7 @@
 #include "apps/ContestApp.h"
 #include "apps/CountryApp.h"
 #include "apps/CwKeyerApp.h"
+#include "apps/CwSimApp.h"
 #include "apps/DigiApp.h"
 #include "apps/DxClusterApp.h"
 #include "apps/EmergencyApp.h"
@@ -41,6 +42,7 @@
 #include "apps/SstvApp.h"
 #include "apps/UpdateApp.h"
 #include "apps/WatchApp.h"
+#include "apps/WsprApp.h"
 #include "apps/WxApp.h"
 #include "apps/VoiceApp.h"
 #include "core/AprsIs.h"
@@ -90,6 +92,8 @@ static ProfilesApp profilesApp;
 static SelfTestApp selfTestApp;
 static AudioLevelApp audioLevelApp;
 static WatchApp watchApp;
+static WsprApp wsprApp;
+static CwSimApp cwSimApp;
 static AprsApp aprsApp;
 static MapApp mapApp;
 static DxClusterApp dxClusterApp;
@@ -157,6 +161,8 @@ static const Entry registry[] = {
         {&profilesApp, Launcher::TOOLS},
         {&setupApp, Launcher::TOOLS},
         {&watchApp, Launcher::RADIO},
+        {&wsprApp, Launcher::DIGITAL},
+        {&cwSimApp, Launcher::TOOLS},
 };
 static std::vector<App*> listApps() {
     std::vector<App*> v;
