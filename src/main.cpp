@@ -3,9 +3,11 @@
 #include <vector>
 
 #include "apps/AprsApp.h"
+#include "apps/AwardsApp.h"
 #include "apps/CalcApp.h"
 #include "apps/CallbookApp.h"
 #include "apps/ClockApp.h"
+#include "apps/ContestApp.h"
 #include "apps/CountryApp.h"
 #include "apps/CwKeyerApp.h"
 #include "apps/DigiApp.h"
@@ -73,6 +75,8 @@ static VoiceApp voiceApp;
 static RangeApp rangeApp;
 static WxApp wxApp;
 static EmergencyApp emergencyApp;
+static AwardsApp awardsApp;
+static ContestApp contestApp;
 static AprsApp aprsApp;
 static MapApp mapApp;
 static DxClusterApp dxClusterApp;
@@ -97,6 +101,7 @@ static UpdateApp updateApp;
 static const std::vector<App*> apps = {&logbookApp, &meshApp,     &aprsApp,    &mapApp,     &ft8App,     &dxClusterApp,
                                        &potaApp,    &pskrApp,     &callbookApp, &logSyncApp,
                                        &radioApp,   &cwKeyerApp,  &voiceApp,    &rangeApp,  &wxApp,
+                                       &contestApp, &awardsApp,
                                        &wsjtxApp,   &solarApp,    &satApp,     &gpsApp,     &digiApp,    &sstvApp,
                                        &pskApp,     &locatorApp,  &repeaterApp, &calcApp,   &morseApp,   &clockApp,
                                        &referenceApp, &guideApp,  &countryApp, &settingsApp, &updateApp, &emergencyApp};

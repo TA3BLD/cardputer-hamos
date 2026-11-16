@@ -1,0 +1,40 @@
+# Telsize bağlanma
+
+HamOS telsizin frekansını ve modunu okuyabilir, telsizi ayarlayabilir, PTT'ye basabilir ve CW gönderebilir. Ayarlar > Rig type ile seçilir.
+
+## Bağlantı tipleri
+- rigctld: PC veya Raspberry Pi'de Hamlib rigctld çalışır, Rig host = adresi. Kablo gerekmez, WiFi gerekir.
+- civ: Icom CI-V kablosu Grove portuna. CI-V address: IC-7300 = 94, IC-705 = A4, IC-9700 = A2, IC-7100 = 88.
+- ft817: Yaesu FT-817 / 857 / 897 CAT kablosu.
+- kenwood: Kenwood ve Elecraft (TS-480, TS-590, K3, KX2, KX3).
+- yaesu: yeni Yaesu (FT-991, FT-891, FT-710, FTDX10).
+- ic705: IC-705 Bluetooth ile, kablosuz.
+- CAT baud rate boşsa: civ 19200, ft817 9600, diğerleri 38400. Telsizdeki ayarla aynı olmalı.
+
+## Grove portu kablolaması
+G1: telsizden gelen veri, G2: telsize giden veri, GND: toprak. Cardputer 3.3 V'tur.
+- CI-V tek kablodur: G2'yi bir diyotla (katot G2 tarafında değil, telsiz tarafında) ve G1'i doğrudan CI-V hattına bağlayın; ya da hazır bir CI-V arayüzü kullanın.
+- 5 V TTL çıkışlı telsizlerde (FT-817 ACC) G1'e gelen hattı 10k/20k bölücüyle 3.3 V'a indirin.
+- RS-232 (DB9) portlu telsizlerde MAX3232 dönüştürücü gerekir.
+- USB'li telsizler (IC-7300 USB, FT-991 USB) Cardputer'a doğrudan bağlanamaz: telsizin arka CI-V / CAT soketini veya rigctld'yi kullanın.
+
+## IC-705 Bluetooth
+1. Rig type = ic705 yapın.
+2. IC-705'te: MENU > SET > Bluetooth Set > Bluetooth: ON, sonra <<Pairing Reception>>.
+3. HamOS "HamOS-Cardputer" adıyla eşleşir. İlk seferden sonra kendiliğinden bağlanır.
+4. Telsiz uygulamasında frekans görünüyorsa bağlantı tamamdır.
+
+## Grove portunun diğer kullanımları (Ayarlar > Grove)
+- key: G1 = CW anahtar çıkışı, G2 = PTT çıkışı. Telsize bir transistör veya optokuplör üzerinden bağlayın (doğrudan bağlamayın).
+- paddle: G1 = nokta, G2 = çizgi, ortak uç GND. İambik B modu, yan ton hoparlörde.
+- wx: BME280 sensörü (G2 = SDA, G1 = SCL, 3.3 V, GND). Hava istasyonu.
+CAT kablosu takılıyken Grove başka işe kullanılamaz.
+
+## PTT
+FT8, SSTV, PSK31, RTTY ve APRS gönderirken HamOS PTT'ye basar (Ayarlar: PTT for FT8/SSTV = 1). Ses Cardputer'ın hoparlöründen çıkar: telsizin mikrofonuna yakın tutun ya da VOX kullanın.
+
+## CW manipülatör
+1-6 hafızalar ({MYCALL}, {CALL}, {RST}, {NR}, {PARK} yer tutucuları), yazılan metin ENTER ile, hız = ve -. Çıkış sırası: Grove key hattı, telsizin kendi manipülatörü (CI-V, Kenwood, rigctld), yoksa sadece yan ton.
+
+## Ses mesajı
+R ve 1-4 ile kaydedin, 1-4 ile PTT'ye basılarak çalınır. L: 1. mesajı aralıklarla tekrarlayan CQ döngüsü. Yarışma ve POTA'da sık kullanılır.

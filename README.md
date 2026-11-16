@@ -31,9 +31,22 @@ An amateur radio toolkit for the M5Stack Cardputer ADV (with or without the LoRa
 | Reference | Q codes, phonetic alphabet, RST, band edges | |
 | Guide | Reading pages in Turkish from the SD card: band plan, FT8, APRS, Meshtastic, propagation, satellites, digital modes, antennas, emergency, Morse | SD card |
 | Countries | Flag, prefixes, short and long path with compass, sunrise and sunset, logged or not | SD card for flags |
+| POTA/SOTA | Live spots (tune the radio with T), parks and summits near you, today's activation count, spotting yourself on pota.app | WiFi |
+| PSK Reporter | Who heard you in the last hour; reports your FT8 decodes | WiFi |
+| Callbook | Name, town and locator from HamQTH or QRZ.com; the logbook fills them in | WiFi + account |
+| Log upload | eQSL, Club Log, QRZ.com logbook (only new contacts); Cabrillo file | WiFi + account |
+| Radio | Frequency and mode, tuning, band presets, PTT (CI-V, FT-817, Kenwood, Yaesu cable on the Grove port; IC-705 over Bluetooth; rigctld) | a radio |
+| CW keyer | Six memories, typed CW, iambic paddle on the Grove port | |
+| Voice keyer | Four recorded messages sent with PTT, CQ loop | |
+| Range test | LoRa range test with GPS (compatible with Meshtastic's), dots on the map | LoRa cap |
+| WX / Digi | BME280 weather station with APRS weather reports; LoRa-APRS digipeater | sensor / LoRa cap |
+| Contest | Callsign + number, ENTER logs; serial numbers, dupes, rate, CW exchange | |
+| Awards | DXCC, continents, the 81 Turkish provinces, grid squares | |
 | Settings | Everything, editable on the device | |
+| Update | Checks GitHub for a new release; installs only after you confirm; returns to the old version if the new one fails to start | WiFi |
+| Emergency | SOS over mesh / LoRa-APRS / APRS-IS with repeats, status messages, safety timer, siren, light, battery saver, alerts for others' calls. Hold G0 for 2 s from anywhere | |
 
-The status bar shows UTC time, unread mesh (`M3`) and APRS (`A1`) messages, GPS fix, WiFi and battery. Turkish letters (ç ğ ı İ ö ş ü) are shown everywhere; the built-in font lacks them, so HamOS draws them itself. The screen dims after a minute without key presses.
+The interface is Turkish by default (Settings: Language tr/en). The status bar shows UTC time, unread mesh (`M3`) and APRS (`A1`) messages, GPS fix, WiFi and battery. Turkish letters (ç ğ ı İ ö ş ü) are shown everywhere; the built-in font lacks them, so HamOS draws them itself. The screen dims after a minute without key presses.
 
 ## SD card
 
@@ -127,6 +140,16 @@ Three ways to open the same panel:
 
 The link is newline-separated JSON over the USB serial port (`src/core/Usb.h` lists the commands); over WiFi the same requests go to `POST /api`. The Cardputer's display cannot be read back, so the screen is mirrored by sending each drawing step, not pixels. `tools/pc/embed.py` puts `hamos.html` into the firmware (`src/core/WebPage.h`); run it after changing the page. `tools/sim/devsim.cpp` is a "device" on the PC for trying the panel without hardware.
 
+## Meshtastic app over Bluetooth
+
+With "Meshtastic app BT" = 1 the official Meshtastic app (phone or PC) connects to HamOS like to any Meshtastic node ("HamOS_xxxx"): nodes, positions, channel, messages both ways. `tools/sim/mesh_app_check.py` checks this with the Meshtastic Python client against the simulator.
+
+## Installing and updating
+
+- From the browser: `tools/flasher/index.html` (ESP Web Tools) installs `hamos-full.bin` over USB in Chrome or Edge.
+- GitHub Actions (`.github/workflows/build.yml`) builds the firmware, runs the tests, and for a tag `vX.Y.Z` publishes a release; `pages.yml` puts the installer on GitHub Pages. The version is in `src/core/Version.h`.
+- On the device: Update app. For a private repository set an "Update token" (a GitHub token that may read the repository).
+
 ## Hardware notes
 
 LoRa + GNSS cap wiring, from the Meshtastic firmware's Cardputer ADV board definition and the `espp` Cardputer component:
@@ -187,5 +210,4 @@ g++ -std=c++17 -I src test/host/test_map.cpp -o test/host/t.out && test/host/t.o
 ## Not done yet
 
 - USB keyboard macros for PC logging programs
-- Callsign lookup and log upload (QRZ, Club Log): these need an account and API key
-- CW paddle keyer, a fully Turkish menu
+- SOTA self-spotting (needs an account login HamOS cannot do)

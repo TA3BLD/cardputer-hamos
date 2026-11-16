@@ -874,6 +874,36 @@ int main() {
     settings::apply(settings::RIG | settings::MESH);
     EXPECT(mesh::ready());
 
+    // ---- Contest: fast logging with serial numbers ----
+    openNext();                                // Contest
+    EXPECT(std::string(current->name()) == "Contest");
+    size_t before = logbook::total();
+    type("ok1abc"); key(' '); type("17"); enter();
+    EXPECT(logbook::total() == before + 1 && logbook::recent().back().call == "OK1ABC" && logbook::recent().back().srx == "17" &&
+           logbook::recent().back().mode == rig::mode() && logbook::recent().back().rstSent == "59" &&      // mode from the radio (rigctld)
+           !logbook::recent().back().stx.empty());
+    type("sp5xyz"); key(' '); type("4"); enter();
+    type("ok1abc");                            // the same station again: a dupe
+    shot("contest");
+    {
+        Keys undo;
+        undo.fn = true;
+        undo.backspace = true;
+        back();                                // clear the field
+        press(undo);
+        EXPECT(logbook::total() == before + 1 && logbook::recent().back().call == "OK1ABC");
+    }
+    back();
+
+    // ---- Awards ----
+    openNext();                                // Awards
+    run(300);
+    EXPECT(std::string(current->name()) == "Awards");
+    shot("awards");
+    tab(); tab();
+    shot("awards-provinces");
+    back();
+
     // ---- FT8: what WSJT-X on the PC decodes, and a contact it logs ----
     {
         auto decode = [](int snr, uint32_t df, const char* text) {
@@ -900,7 +930,7 @@ int main() {
     }
     openNext();                                // WSJT-X companion
     run(300);
-    EXPECT(wsjtxlink::decodes().size() == 7 && wsjtxlink::logged() == 1 && logbook::total() == 7);
+    EXPECT(wsjtxlink::decodes().size() == 7 && wsjtxlink::logged() == 1 && logbook::total() == 8);
     EXPECT(readSd("/HamOS/log.adi").find("<CALL:6>LU5ABC <QSO_DATE:8>20261113 <TIME_ON:4>1158 <FREQ:9>14.075500 <BAND:3>20m <MODE:3>FT8") != std::string::npos);
     shot("wsjtx");
     back();

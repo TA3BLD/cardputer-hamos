@@ -7,6 +7,7 @@
 #include "lib/Aprs.h"
 #include "lib/Bme280.h"
 #include "lib/Emergency.h"
+#include "lib/Awards.h"
 
 static int failures = 0;
 #define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); failures++; } } while (0)
@@ -60,6 +61,23 @@ int main(int argc, char** argv) {
           "SOS TA3BLD 38.42370,27.14280 KM38nk bat 87% #2 bacak kirik");
     CHECK(sos::text("TA3BLD", false, 0, 0, "", -1, 1, "") == "SOS TA3BLD #1");
     CHECK(sos::sendTime(0) == 0 && sos::sendTime(1) == 60 && sos::sendTime(5) == 300 && sos::sendTime(6) == 600 && sos::sendTime(7) == 900);
+
+    // Awards
+    CHECK(awards::provinceOf("Karşıyaka, İzmir") == 34 && awards::provinceOf("ISTANBUL") == 33 && awards::provinceOf("Şanlıurfa") == 62);
+    CHECK(awards::provinceOf("Antep") == 26 && awards::provinceOf("Karşıyaka") == -1 && awards::provinceOf("Iğdır merkez") == 75);
+    CHECK(awards::provinceOf("Kars") == 35 && awards::provinceOf("Afyon") == 2 && awards::provinceOf("Düzce") == 80);
+    {
+        awards::Tally t;
+        adif::Qso q;
+        q.call = "TA1ABC"; q.freq = "14.074"; q.qth = "Kadıköy, İstanbul"; q.grid = "km40"; t.add(q);
+        q.call = "TA3XYZ"; q.freq = "7.074"; q.qth = ""; q.comment = "op Ali, Izmir"; q.grid = "KM38nk"; t.add(q);
+        q.call = "DL1ABC"; q.freq = "14.074"; q.qth = "Bremen"; q.grid = "JO43"; t.add(q);
+        q.call = "JA1XYZ"; q.freq = "21.074"; q.grid = "PM95"; t.add(q);
+        q.call = "PY2AA"; q.freq = "28.074"; q.grid = "zz99"; t.add(q);            // not a grid
+        CHECK(t.contacts == 5 && t.countries.size() == 4 && t.provinceSet.size() == 2 && t.provinceSet.count(33) && t.provinceSet.count(34));
+        CHECK(t.continents.size() == 3 && t.continents.count("EU") && t.continents.count("SA"));   // AS (TA, JA), EU, SA
+        CHECK(t.grids.size() == 4 && t.gridsByBand["20m"].size() == 2 && t.countriesByBand["20m"].size() == 2);
+    }
 
     if (failures) { printf("%d failed\n", failures); return 1; }
     printf("all passed\n");
