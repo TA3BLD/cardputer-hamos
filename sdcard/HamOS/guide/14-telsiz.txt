@@ -13,7 +13,7 @@ HamOS telsizin frekansını ve modunu okuyabilir, telsizi ayarlayabilir, PTT'ye 
 
 ## Grove portu kablolaması
 G1: telsizden gelen veri, G2: telsize giden veri, GND: toprak. Cardputer 3.3 V'tur.
-- CI-V tek kablodur: G2'yi bir diyotla (katot G2 tarafında değil, telsiz tarafında) ve G1'i doğrudan CI-V hattına bağlayın; ya da hazır bir CI-V arayüzü kullanın.
+- CI-V tek kablodur: G1 doğrudan CI-V hattına; G2 bir diyotla (1N4148, katot G2 tarafında, anot CI-V hattında) aynı hatta. Ya da hazır bir CI-V arayüzü kullanın.
 - 5 V TTL çıkışlı telsizlerde (FT-817 ACC) G1'e gelen hattı 10k/20k bölücüyle 3.3 V'a indirin.
 - RS-232 (DB9) portlu telsizlerde MAX3232 dönüştürücü gerekir.
 - USB'li telsizler (IC-7300 USB, FT-991 USB) Cardputer'a doğrudan bağlanamaz: telsizin arka CI-V / CAT soketini veya rigctld'yi kullanın.
