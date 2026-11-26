@@ -1,0 +1,29 @@
+# APRS ve LoRa-APRS
+
+APRS (Automatic Packet Reporting System), konum, kısa mesaj ve hava durumu gibi bilgileri paket olarak yayınlayan bir ağdır. Avrupa ve Türkiye'de VHF frekansı 144.800 MHz'dir (1200 baud AFSK).
+
+## SSID (çağrı işaretinin sonundaki ek)
+- -0 veya eksiz: ana istasyon
+- -5: akıllı telefon
+- -7: el telsizi
+- -9: araç
+- -10: internet veya iGate
+- -13: hava durumu istasyonu
+
+## Yol (path)
+Araçta ve el telsizinde WIDE1-1,WIDE2-1 yaygındır. Sabit istasyonlar daha kısa yol kullanmalıdır. Gereksiz uzun yol ağı tıkar.
+
+## APRS-IS
+APRS'in internet tarafıdır. HamOS, Settings > APRS-IS = 1 ile bağlanır, yakın istasyonları listeler ve mesajlaşır. Bağlantı için çağrı işaretinizden hesaplanan passcode kullanılır; HamOS bunu kendisi hesaplar.
+
+## LoRa-APRS (433.775 MHz)
+LoRa modülasyonuyla çalışan APRS'tir; düşük güçle uzun mesafe sağlar. Ayarlar: SF12, 125 kHz, CR 4/5. HamOS'ta Settings > LoRa mode = aprs yapın. Bu durumda Meshtastic kapanır, radyo 433.775 MHz'e geçer.
+- Duyulan LoRa istasyonları APRS listesinde LoRa etiketiyle görünür.
+- B: konumunuzu LoRa'dan gönderir. LoRa beacon min ile otomatik aralık verilebilir (en az 5 dakika).
+- LoRa iGate = 1: duyduğunuz LoRa paketlerini APRS-IS'e aktarır (yalnızca alıcı iGate).
+
+## Ses modemi
+APRS uygulamasının üçüncü sayfası 1200 baud modemdir: 144.800'e ayarlı bir telsizi Cardputer'ın yanına koyarsanız paketleri mikrofondan çözer. B tuşu konum paketinizi hoparlörden çalar; VOX'lu bir telsizle gönderilebilir.
+
+## Mesajlaşma
+Messages sayfasında ÇAĞRI mesaj yazıp ENTER. Karşı taraf onaylarsa mesaj yeşile döner. LoRa-APRS açıksa mesajlar LoRa'dan gider.

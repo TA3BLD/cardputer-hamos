@@ -1,0 +1,77 @@
+# Builds the firmware on every push, runs the PC tests and the simulator.
+# A tag "vX.Y.Z" also publishes a release (the device's update check reads it);
+# pages.yml then puts the browser installer on GitHub Pages.
+name: build
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-${{ hashFiles('platformio.ini') }}
+      - name: Install PlatformIO
+        run: pip install platformio
+      - name: Build
+        run: pio run -e cardputer-adv
+      - name: Version matches the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          v=$(sed -n 's/.*HAMOS_VERSION "\(.*\)".*/\1/p' src/core/Version.h)
+          test "v$v" = "${GITHUB_REF_NAME}" || { echo "Version.h says $v, tag is ${GITHUB_REF_NAME}"; exit 1; }
+      - name: Single image for the browser installer
+        run: |
+          B=.pio/build/cardputer-adv
+          BOOT=$(find ~/.platformio/packages -name boot_app0.bin | head -1)
+          python ~/.platformio/packages/tool-esptoolpy/esptool.py --chip esp32s3 merge_bin -o $B/hamos-full.bin \
+            --flash_mode dio --flash_freq 80m --flash_size 8MB \
+            0x0 $B/bootloader.bin 0x8000 $B/partitions.bin 0xe000 "$BOOT" 0x10000 $B/firmware.bin
+          mkdir -p out
+          cp $B/firmware.bin out/firmware.bin
+          cp $B/hamos-full.bin out/hamos-full.bin
+          ls -l out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hamos-firmware
+          path: out/
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/firmware.bin
+            out/hamos-full.bin
+          generate_release_notes: true
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev python3-pil
+      - name: Unit tests
+        run: |
+          for t in test_libs test_maidenhead test_radio test_modem test_sat test_ft8qso test_psk31 test_json test_web test_cat test_wx; do
+            g++ -std=c++17 -O1 -I src test/host/$t.cpp -lcrypto -o test/host/t.out && test/host/t.out > /dev/null || exit 1
+            echo "$t passed"
+          done
+          g++ -std=c++17 -I src test/host/test_map.cpp -o test/host/t.out && test/host/t.out sdcard/HamOS/map
+      - name: Simulator
+        run: sh tools/sim/run.sh

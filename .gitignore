@@ -1,0 +1,6 @@
+.pio/
+.vscode/
+test/host/*.out
+dist/
+compile_commands.json
+tools/sim/dbg.txt

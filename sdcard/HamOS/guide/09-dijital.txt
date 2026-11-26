@@ -1,0 +1,20 @@
+# SSTV, PSK31, RTTY ve CW
+
+## SSTV
+Yavaş taramalı televizyon: bir resmi sesle gönderir. HamOS SSTV uygulaması mikrofondan resim alır ve SD karttaki resimleri gönderir.
+- Martin M1 (yaklaşık 114 s) ve Scottie S1 (110 s): HF'de en yaygın
+- Robot 36 (36 s): hızlı, renkli
+- PD120: ISS etkinliklerinde sık kullanılır
+- Frekanslar: 14.230, 21.340, 28.680, 144.500 MHz
+
+## PSK31
+31,25 baud, çok dar (yaklaşık 60 Hz) klavye sohbeti modu. Su şelalesi (waterfall) üzerinde sinyalin üstüne gelip seçersiniz. Frekanslar: 3.580, 7.040, 14.070, 21.070, 28.120 MHz (USB).
+
+## RTTY
+45,45 baud, 170 Hz kaydırma. Contest'lerde yaygındır. Ters (reverse) sinyal görürseniz R tuşuyla çevirin.
+
+## CW (Mors)
+En dar ve en verimli mod. Decoder uygulaması mikrofondan Mors çözer; hızı kendisi bulur. Morse uygulaması öğrenmek içindir.
+
+## Ses bağlantısı
+Mikrofonla almak kolaydır ama ortam gürültüsü hassasiyeti düşürür. Göndermek için kulaklık çıkışını telsizin data veya mikrofon girişine bağlamak en temiz yoldur.

@@ -1,0 +1,38 @@
+# Menü ve yeni araçlar
+
+## Menü
+- TAB: gruplar arasında geçer (Tümü, Favoriler, Log, Dijital, Mesh/APRS, Telsiz, Araçlar, Bilgi).
+- Harf yazınca isme göre arar ("ft" -> FT8). DEL harf siler, ` aramayı temizler.
+- Fn+ENTER: seçili uygulamayı favorilere ekler ya da çıkarır.
+
+## İlk kurulum ve profiller
+- Çağrı işareti girilmemişse açılışta kurulum sihirbazı gelir (dil, çağrı, grid, WiFi, LoRa). Sonradan Araçlar > Kurulum.
+- Profiller: Ev, Saha (POTA/SOTA), Acil. ENTER ve Y ile geçilir; S ile şu anki ayarlar o profile kaydedilir.
+
+## Kontrol araçları
+- Kendini test: SD kart, saat, WiFi, GPS, LoRa, telsiz, Bluetooth, pil, bellek, mikrofon ve hoparlör tek ekranda.
+- Ses seviyeleri: telsizin sesi mikrofona ne kadar geliyor (yeşil bölge iyi, kırmızı kırpıyor). TAB ile 1500 Hz test tonu; P ile PTT, =/- ile hoparlör sesi. FT8, SSTV, PSK31 öncesi bir kez ayarlayın.
+
+## Uyarılar
+- İzleme listesi (Ayarlar: Watch list): çağrı (3Y0J), önek (VK9*), park (TA-*), NEW (logda olmayan ülke). DX cluster, FT8 ve POTA spotlarında görününce bip ve durum çubuğunda yazı.
+- Bant açılmaları: PSK Reporter'a göre gridinizden 2500 km'den uzağa yol olan bantlar. B ile otomatik uyarı.
+
+## Telsizle birlikte
+- Röleler: T ile telsizi röleye ayarlar (frekans, FM, shift, ton).
+- Uydular: C ile telsiz Doppler'i izler, A ile geçişten 2 dk önce alarm.
+- Harita: Q yaptığınız QSO'ları çizgiyle, L gündüz/gece çizgisini gösterir.
+
+## Yeni modlar
+- FT4: FT8 ekranında M ile geçilir (7.5 sn periyot, 14.080 MHz).
+- WSPR: düşük güçle beacon. T açar; her n. iki dakikada bir gönderir. H: sizi kim duydu (wspr.live).
+- CW pratik: sanal bir istasyon CQ çeker; çağrısını, sonra RST, isim ve QTH'yi yazarsınız. Telsizi asla anahtarlamaz.
+
+## Çevrim ve acil haberleşme
+- Çevrim yönetimi: katılanların listesi, saatleri, trafiği olanlar (Fn+T), bitenler (Fn+X). Her çevrim SD karta kaydedilir.
+- Mesaj formu: numara, öncelik, gönderen, yer, saat, alıcı, metin, imza; kelime sayısı kendiliğinden. Fn+S ile mesh'e (gerekirse parçalı) ve APRS çağrısına gider.
+- Takip: hızlıyken sık, yavaşken seyrek, dönüşte hemen konum gönderir (SmartBeaconing). D ile ekran kapanır.
+- Posta kutusu (Takip > TAB): kanalda "@AD mesaj" yazılan düğüm uzaktaysa mesaj saklanır, düğüm geri gelince ona özel mesaj olarak gider. Ayarlar: Mesh mailbox = 1.
+
+## Bilgisayardan
+- PC panelinde Durum sekmesi: ayarları yedekle / geri yükle, yazılım (.bin) yükle.
+- Ayarlar: Log to PC = IP:port. Her QSO, N1MM biçiminde (Log4OM, N1MM vb.) ya da ADIF olarak ağdaki log programına gider. Adres .255 ile biterse tüm ağa yayınlanır.

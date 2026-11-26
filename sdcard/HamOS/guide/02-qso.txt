@@ -1,0 +1,24 @@
+# QSO yapmak: temel kurallar
+
+## Önce dinleyin
+Bir frekansta yayına başlamadan önce bir süre dinleyin. Boş görünüyorsa sorun: telefonda "Bu frekans kullanılıyor mu?", CW'de "QRL?". Cevap gelmezse çağrı yapabilirsiniz.
+
+## Genel çağrı (CQ)
+Telefonda: "CQ CQ CQ, burası TA3BLD, Tango Alfa Üç Bravo Lima Delta, çağrı yapıyor ve dinliyor." Çağrı işaretinizi fonetik alfabeyle söyleyin (Reference uygulamasında tablo var).
+
+## Bir QSO'da neler söylenir
+- Karşı istasyonun ve kendi çağrı işaretiniz
+- Sinyal raporu: RST (telefonda 59, CW'de 599 gibi)
+- İsim ve konum (QTH)
+- Teşekkür ve kapanış: "73" (iyi dilekler)
+
+## Kimlik verme
+Yayına başlarken, bitirirken ve uzun görüşmelerde belirli aralıklarla çağrı işaretinizi verin (birçok ülkede en az 10 dakikada bir). HamOS'ta Settings > ID reminder min ile hatırlatıcı kurabilirsiniz.
+
+## Log tutmak
+Her QSO için tarih, UTC saat, frekans, mod, çağrı işareti ve raporlar yazılır. HamOS Logbook bunları standart ADIF dosyasına yazar; dosyayı bilgisayardaki log programına veya LoTW, eQSL, QRZ gibi servislere aktarabilirsiniz.
+
+## Kibarlık
+- Kalabalık bir DX istasyonunu sabırla çağırın, sürekli üst üste çağırmayın.
+- "Up 1" gibi talimatlara uyun: DX başka frekansı dinliyorsa onun frekansında yayın yapmayın.
+- Gücü gerektiği kadar kullanın.

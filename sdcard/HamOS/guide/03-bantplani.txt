@@ -1,0 +1,60 @@
+# Bant planı (IARU Bölge 1 özeti)
+
+Türkiye IARU 1. Bölgededir. Aşağıdaki değerler bölge bant planının özetidir; lisans sınıfınızın izin verdiği bantları ve güç sınırlarını ulusal yönetmelikten kontrol edin. Frekanslar MHz'dir.
+
+## 160 m (1.810 - 2.000)
+- 1.810 - 1.838 CW
+- 1.840 FT8
+- 1.843 - 2.000 telefon (LSB)
+
+## 80 m (3.500 - 3.800)
+- 3.500 - 3.570 CW (3.500 - 3.510 DX öncelikli)
+- 3.573 FT8, 3.580 civarı PSK ve RTTY
+- 3.600 - 3.800 telefon (LSB)
+- 3.760 acil durum aktivite merkezi
+
+## 40 m (7.000 - 7.200)
+- 7.000 - 7.040 CW
+- 7.040 - 7.050 dar bant dijital
+- 7.074 FT8
+- 7.050 - 7.200 telefon (LSB), 7.110 acil durum
+
+## 30 m (10.100 - 10.150)
+Yalnızca CW ve dijital, telefon yok. FT8 10.136.
+
+## 20 m (14.000 - 14.350)
+- 14.000 - 14.070 CW
+- 14.070 PSK31, 14.074 FT8, 14.080 - 14.099 RTTY
+- 14.100 uluslararası beacon ağı (boş bırakın)
+- 14.101 - 14.350 telefon (USB), 14.230 SSTV, 14.300 acil durum
+
+## 17 m (18.068 - 18.168)
+CW 18.068 - 18.095, FT8 18.100, telefon 18.111 - 18.168, acil durum 18.160.
+
+## 15 m (21.000 - 21.450)
+CW 21.000 - 21.070, FT8 21.074, telefon 21.151 - 21.450, SSTV 21.340, acil durum 21.360.
+
+## 12 m (24.890 - 24.990)
+CW 24.890 - 24.915, FT8 24.915, telefon 24.931 - 24.990.
+
+## 10 m (28.000 - 29.700)
+- 28.000 - 28.070 CW, 28.074 FT8, 28.120 PSK31
+- 28.300 - 29.300 telefon (USB), 28.680 SSTV
+- 29.300 - 29.510 uydu, 29.520 - 29.700 FM ve röleler
+
+## 6 m (50 MHz)
+50.150 SSB çağrı, 50.313 FT8. Bandın sınırları ülkeye göre değişir.
+
+## 2 m (144 - 146)
+- 144.050 CW çağrı, 144.174 FT8, 144.300 SSB çağrı
+- 144.500 SSTV, 144.800 APRS
+- 145.500 FM çağrı (simpleks)
+- 145.600 - 145.7875 röle çıkışları (giriş 600 kHz aşağıda)
+- 145.800 - 146.000 uydu (yer istasyonları burada FM simpleks yapmaz)
+
+## 70 cm (430 - 440)
+- 432.200 SSB çağrı
+- 433.500 FM çağrı
+- 433.775 LoRa-APRS (fiili standart)
+- 435 - 438 uydu
+- Röle frekansları ve shift değerleri ülkeye göre değişir.
