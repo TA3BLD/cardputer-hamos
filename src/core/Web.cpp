@@ -117,7 +117,8 @@ void handleUpdatePage() {
         return;
     }
     sendPage("Firmware update",
-             "<p>Choose the <code>firmware.bin</code> built by PlatformIO (<code>.pio/build/cardputer-adv/firmware.bin</code>). "
+             "<p>Choose <code>hamOS_&lt;version&gt;.bin</code> from a release (not <code>hamOS_0x0.bin</code>), or the "
+             "<code>firmware.bin</code> built by PlatformIO (<code>.pio/build/cardputer-adv/firmware.bin</code>). "
              "The device restarts when it is done.</p>"
              "<form method=post action=/update enctype=multipart/form-data><input type=file name=firmware accept=.bin> "
              "<input type=submit value=Install></form>");

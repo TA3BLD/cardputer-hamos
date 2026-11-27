@@ -60,6 +60,13 @@ int main(int argc, char** argv) {
     CHECK(info.notes.find("POTA") != std::string::npos);
     CHECK(!release::parse(R"({"message":"Not Found"})", info));
     CHECK(!release::parse(R"({"tag_name":"v1","assets":[]})", info));
+    // The release file names: hamOS_0x0.bin (complete image) is never the update, hamOS_1_1.bin is
+    const char* named = R"({"tag_name":"v1.1.0","name":"HamOS v1.1.0","assets":[
+      {"url":"https://api.github.com/repos/o/r/releases/assets/21","name":"hamOS_0x0.bin","size":2670048,"browser_download_url":"https://github.com/o/r/releases/download/v1.1.0/hamOS_0x0.bin"},
+      {"url":"https://api.github.com/repos/o/r/releases/assets/22","name":"hamOS_1_1.bin","size":2615264,"browser_download_url":"https://github.com/o/r/releases/download/v1.1.0/hamOS_1_1.bin"}]})";
+    CHECK(release::parse(named, info) && info.version == "1.1.0" && info.size == 2615264 && info.downloadUrl.find("hamOS_1_1.bin") != std::string::npos);
+    CHECK(!release::parse(R"({"tag_name":"v1.1.0","assets":[{"name":"hamOS_0x0.bin","size":5,"browser_download_url":"x"}]})", info));
+    CHECK(release::isAppAsset("HamOS_2_0_1.bin") && !release::isAppAsset("hamos-full.bin") && !release::isAppAsset("hamOS_1_1.zip"));
 
     // XML
     std::string hq = "<?xml version=\"1.0\"?><HamQTH version=\"2.8\"><search><callsign>ok7an</callsign><nick>Petr</nick>"

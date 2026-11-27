@@ -9,7 +9,7 @@ struct KeyEvent {
     bool del = false;   // Backspace (or Fn+Backspace)
     bool tab = false;
     bool fn = false;
-    bool ctrl = false;  // Ctrl held (Ctrl + ; . , / are the global brightness / volume keys)
+    bool ctrl = false;  // Ctrl held (the keyboard library then reports the shifted character)
     bool esc = false;   // Fn + `
     bool arrowUp = false, arrowDown = false, arrowLeft = false, arrowRight = false;    // Fn + ; . , /
 

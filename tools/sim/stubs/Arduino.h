@@ -15,6 +15,7 @@
 #define OUTPUT 1
 #define INPUT 0
 #define INPUT_PULLUP 2
+#define INPUT_PULLDOWN 3
 #define SERIAL_8N1 0
 
 extern uint32_t sim_ms;

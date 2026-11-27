@@ -6,6 +6,7 @@
 #include <cstring>
 #include <ctime>
 #include "AprsIs.h"
+#include "Keyer.h"
 #include "Gps.h"
 #include "Mesh.h"
 #include "Net.h"
@@ -357,9 +358,17 @@ void statusBar(const char* title) {
     snprintf(right, sizeof(right), "%sz%s%s%s %d%%", clock, unread, gps::hasFix() ? " GPS" : "",
              net::connected() ? " WiFi" : "", (int)M5Cardputer.Power.getBatteryLevel());
     drawText(right, W - 4, STATUS_H / 2, 1, RIGHT, true, C_TEXT, C_BAR);
+    // The CW keyer keys the radio: a red TX left of the clock, on every page.
+    int txRoom = 0;
+    if (keyer::onAir()) {
+        int x = W - 4 - (int)strlen(right) * 6 - 18;
+        rect(x - 2, 1, 16, STATUS_H - 2, C_ERR);
+        drawText("TX", x, STATUS_H / 2, 1, LEFT, true, C_TEXT, C_ERR);
+        txRoom = 3;
+    }
     // The title or notice on the left, cut to the room left of the clock.
     std::string left = notice.empty() ? std::string(title) : notice;
-    size_t room = (size_t)((W - 8 - (int)strlen(right) * 6 - 6) / 6), n = 0, cut = 0;
+    size_t room = (size_t)((W - 8 - (int)strlen(right) * 6 - 6) / 6 - txRoom), n = 0, cut = 0;
     while (cut < left.size() && n < room) {
         unsigned char c = (unsigned char)left[cut];
         cut += c >= 0xF0 ? 4 : c >= 0xE0 ? 3 : c >= 0xC0 ? 2 : 1;

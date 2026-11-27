@@ -253,7 +253,8 @@ static void switchTo(App* next) {
     lastStatusMs = 0;   // refresh the title now
 }
 
-// ---- brightness and volume from any screen: Ctrl + ; / .  and  Ctrl + , / / ----
+// ---- volume and brightness from any screen: Fn + = / -  and  Fn + ] / [ ----
+// (No app uses Fn with these keys; without Fn, - and = stay the apps' own.)
 
 static std::string levelBar(int v, int max) {
     int n = (v * 10 + max / 2) / max;
@@ -261,18 +262,18 @@ static std::string levelBar(int v, int max) {
 }
 
 static bool levelKey(const KeyEvent& k) {
-    if (!k.ctrl) return false;
-    bool light = k.ch == ';' || k.ch == '.', sound = k.ch == ',' || k.ch == '/';
+    if (!k.fn) return false;
+    bool light = k.ch == '[' || k.ch == ']', sound = k.ch == '-' || k.ch == '=';
     if (!light && !sound) return false;
     char b[64];
     if (light) {
-        int v = (int)brightness() + (k.ch == ';' ? 20 : -20);
+        int v = (int)brightness() + (k.ch == ']' ? 20 : -20);
         v = v < 10 ? 10 : v > 255 ? 255 : v;
         config::set("brightness", std::to_string(v));
         if (!emergency::ownsBacklight()) M5Cardputer.Display.setBrightness((uint8_t)v);
         snprintf(b, sizeof(b), "%s [%s] %d", T("Brightness"), levelBar(v, 255).c_str(), v);
     } else {
-        int v = atoi(config::get("volume", "160").c_str()) + (k.ch == '/' ? 16 : -16);
+        int v = atoi(config::get("volume", "160").c_str()) + (k.ch == '=' ? 16 : -16);
         v = v < 0 ? 0 : v > 255 ? 255 : v;
         config::set("volume", std::to_string(v));
         M5Cardputer.Speaker.setVolume((uint8_t)v);
@@ -356,7 +357,7 @@ static void pollKeyboard() {
     static uint32_t repeatAt = 0;
     auto repeatable = [](const KeyEvent& e) {
         return e.arrowUp || e.arrowDown || e.arrowLeft || e.arrowRight || e.del || e.ch == ';' || e.ch == '.' ||
-               e.ch == ',' || e.ch == '/';
+               e.ch == ',' || e.ch == '/' || (e.fn && (e.ch == '-' || e.ch == '=' || e.ch == '[' || e.ch == ']'));
     };
     auto pressed = [&](const KeyEvent& e) {
         dispatch(e);
@@ -631,6 +632,11 @@ void loop() {
         dimmed = true;
     }
 
+    static bool onAirShown = false;     // TX in the status bar: show and clear it at once
+    if (keyer::onAir() != onAirShown) {
+        onAirShown = !onAirShown;
+        lastStatusMs = 0;
+    }
     if (lastStatusMs == 0 || now - lastStatusMs >= 1000) {
         lastStatusMs = now ? now : 1;
         ui::statusBar(current->name());

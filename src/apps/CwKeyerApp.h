@@ -7,10 +7,12 @@
 #include "core/Lang.h"
 #include "core/Rig.h"
 #include "core/Ui.h"
+#include "apps/CwView.h"
 
 // CW keyer: six memories (1-6, or Fn+1-6 while typing), typed text (ENTER
 // sends), speed with = and -. TAB edits the other station's callsign used in
-// the memories. A paddle on the Grove port works at the same time.
+// the memories. A paddle (Settings "Paddle ...") works at the same time.
+// While sending, a TX line shows the letter and the dot or dash going out.
 class CwKeyerApp : public App {
 public:
     const char* name() const override { return T("CW keyer"); }
@@ -22,11 +24,20 @@ public:
         text_.upper = true;
         text_.maxLen = 40;
         nr_ = atoi(config::get("cw_nr", "1").c_str());
+        keyer::setKeyerPage(true);      // here the paddle always keys the radio
     }
+
+    void onExit() override { keyer::setKeyerPage(false); }
 
     void onTick(uint32_t now) override {
         bool b = keyer::busy();
-        std::string p = keyer::paddleText();
+        // Redraw when what is sent or keyed moves on (each dot and dash).
+        keyer::TxView v = keyer::txView();
+        bool down = false;
+        std::string live = keyer::paddlePattern(&down);
+        char sig[48];
+        snprintf(sig, sizeof(sig), "%d%d%u/%d%d%d", v.active, v.doneMsAgo < 3000, (unsigned)v.letter, v.element, v.down, down);
+        std::string p = keyer::paddleText() + "|" + live + sig;
         if (b != wasBusy_ || p != shownPaddle_ || now - lastDraw_ > 1000) {
             wasBusy_ = b;
             shownPaddle_ = p;
@@ -84,9 +95,15 @@ public:
         ui::text(32, y, call_.value + (editCall_ ? "_" : ""), editCall_ ? ui::C_TEXT : ui::C_OK);
         ui::text(120, y, T("NR ") + nrText(), ui::C_DIM);
         y += 11;
-        if (keyer::paddle() && !keyer::paddleText().empty()) {
+        bool down = false;
+        std::string live = keyer::paddlePattern(&down);
+        if (cwview::tx(y, keyer::txView())) {
+            // the TX line and its dots and dashes
+        } else if (keyer::paddle() && (!keyer::paddleText().empty() || !live.empty())) {
             std::string p = keyer::paddleText();
             ui::text(2, y, "~ " + p.substr(p.size() > 36 ? p.size() - 36 : 0), ui::C_OK);
+            // the letter being keyed, as it is keyed
+            cwview::live(14, y + 11, live, down, 1);
         } else {
             ui::text(2, y, "> " + text_.value + (editCall_ ? "" : "_"), ui::C_TEXT);
         }

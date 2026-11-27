@@ -18,3 +18,22 @@ Koch yöntemi: işaretler baştan hedef hızda (örneğin 18 - 20 WPM) çalını
 
 ## Kısa bir CW QSO
 CQ CQ DE TA3BLD K ... TA3BLD DE DL1ABC K ... DL1ABC DE TA3BLD GM UR 599 599 NAME ALI QTH IZMIR HW? BK ... (bilgi alışverişi) ... TNX QSO 73 SK
+
+## Manipülatör (paddle) veya düz anahtar bağlama
+İki tuşlu manipülatör ya da tek kontaklı düz anahtar iki boş pine bağlanır. Mors uygulamasında ton ve ekranda harfler verir (TRAIN sayfasında cevap olarak sayılır, telsizi anahtarlamaz); CW manip. uygulamasında telsizi anahtarlar. Ayarlar:
+- Pedal/anahtar 0/1: 1 açık
+- Pedal iambic/simple/straight: iambic basılı tutunca tekrar eder, iki tuşa birden basınca nokta-çizgi sırayla; simple her basışta tek nokta veya tek çizgi; straight düz anahtar, süreyi siz belirlersiniz
+- Pedal nokta/key GPIO ve Pedal çiz. GPIO: 1 ve 2 (Grove G1/G2); cap takılı değilse üst konnektörden 3 4 5 6 13 15 de olur. Düz anahtar nokta pinini kullanır.
+- Pedal kontak gnd/3v3: gnd ise her kontak GND'ye kapanır, 3v3 ise 3V3'e kapanır. Direnç gerekmez, içeride hazır.
+- Pedal nokta/çizgi takas: 1 ise nokta ve çizgi yer değiştirir (solak kullanım)
+- Pedal her sayfada TX 0/1: 1 (varsayılan) ise pedal her sayfadan telsizi anahtarlar, başka uygulamalara bakarken de CW gönderebilirsiniz; 0 ise sadece CW manip. sayfasında. Mors sayfası asla yayın yapmaz.
+- Telsiz anahtarlandığı sürece üst çubukta kırmızı TX yanar.
+- Mors çalışma WPM: Mors uygulamasının hızı; uygulamada Fn + ; ve Fn + . ile de değişir
+- Bastığınız anda harfin noktaları ve çizgileri ekranda görünür (o an çalan kırmızı), harf bitince yazıya dönüşür.
+> Cap takılıyken cap'in pinleri, telsiz kablosu / key / hava sensörü varken Grove pinleri kullanılamaz; Morse ekranı nedenini yazar. Pinlere asla 5 V bağlamayın.
+
+## Gönderirken TX satırı
+CW manip. bir hafızayı veya yazdığınızı gönderirken TX satırı çıkar: giden harf işaretli, altında noktalar ve çizgiler, o an anahtarlanan kırmızı; bitince "Gitti" yazar. Telsize bağlıyken ses duymasanız da gönderildiğini görürsünüz. Telsiz CAT ile kendi keyer'ıyla gönderiyorsa (~ işareti) gösterim CW hızına göre tahminidir.
+
+## Ses ve parlaklık
+Her ekranda Fn + = sesi açar, Fn + - kısar; Fn + ] ekranı parlatır, Fn + [ karartır. Tek ses ayarı vardır: bip'ler, CW tonu ve telsize giden ses aynıdır.

@@ -24,7 +24,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download --repo "$GITHUB_REPOSITORY" --pattern hamos-full.bin --dir tools/flasher
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern hamOS_0x0.bin --dir tools/flasher
           tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)
           sed -i "s/__VERSION__/${tag#v}/" tools/flasher/manifest.json
       - uses: actions/configure-pages@v5

@@ -5,7 +5,7 @@
   "builds": [
     {
       "chipFamily": "ESP32-S3",
-      "parts": [{ "path": "hamos-full.bin", "offset": 0 }]
+      "parts": [{ "path": "hamOS_0x0.bin", "offset": 0 }]
     }
   ]
 }

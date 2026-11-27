@@ -30,7 +30,7 @@ An amateur radio toolkit for the M5Stack Cardputer ADV (with or without the LoRa
 | Locator | Distance and beam heading between two locators | |
 | Repeaters | Your repeater list from the SD card, nearest first | SD card |
 | Calculator | Antenna length, SWR, dBm/Watt, feedline loss, LC resonance, Ohm's law | |
-| Morse | Type-to-send practice and a Koch-method trainer | |
+| Morse | Practice by typing or with a paddle / straight key (the dots and dashes show as you key), and a Koch-method trainer you answer by typing or keying; its own speed | |
 | UTC Clock | UTC and local time | |
 | Reference | Q codes, phonetic alphabet, RST, band edges | |
 | Guide | Reading pages in Turkish from the SD card: band plan, FT8, APRS, Meshtastic, propagation, satellites, digital modes, antennas, emergency, Morse | SD card |
@@ -40,7 +40,7 @@ An amateur radio toolkit for the M5Stack Cardputer ADV (with or without the LoRa
 | Callbook | Name, town and locator from HamQTH or QRZ.com; the logbook fills them in | WiFi + account |
 | Log upload | eQSL, Club Log, QRZ.com logbook (only new contacts); Cabrillo file | WiFi + account |
 | Radio | Frequency and mode, tuning, band presets, PTT (CI-V, FT-817, Kenwood, Yaesu cable on the Grove port; IC-705 over Bluetooth; rigctld) | a radio |
-| CW keyer | Six memories, typed CW, iambic paddle on the Grove port | |
+| CW keyer | Six memories, typed CW, paddle or straight key (see [Paddle and key](#paddle-and-key)); a TX line shows each dot and dash as it goes out | |
 | Voice keyer | Four recorded messages sent with PTT, CQ loop | |
 | Range test | LoRa range test with GPS (compatible with Meshtastic's), dots on the map | LoRa cap |
 | WX / Digi | BME280 weather station with APRS weather reports; LoRa-APRS digipeater | sensor / LoRa cap |
@@ -58,7 +58,7 @@ An amateur radio toolkit for the M5Stack Cardputer ADV (with or without the LoRa
 | Update | Checks GitHub for a new release; installs only after you confirm; returns to the old version if the new one fails to start | WiFi |
 | Emergency | SOS over mesh / LoRa-APRS / APRS-IS with repeats, status messages, safety timer, siren, light, battery saver, alerts for others' calls. Hold G0 for 2 s from anywhere | |
 
-The interface is in English or Turkish: the setup wizard asks on the first start (later: Settings, Language tr/en). HamOS starts on a home screen (clock, station, battery, WiFi, GPS; TAB for a map, your position and the latest messages); ENTER or `` ` `` opens the app menu, and after 30 s idle in the menu it goes back home. A WiFi app scans for networks and shows the address (`http://hamos.local`). Ctrl + `;` / `.` changes the brightness and Ctrl + `,` / `/` the volume on any screen; held arrow keys repeat. In the app menu TAB switches groups, typing searches by name and Fn+ENTER marks favourites. The status bar shows UTC time, unread mesh (`M3`) and APRS (`A1`) messages, GPS fix, WiFi and battery. Turkish letters (ç ğ ı İ ö ş ü) are shown everywhere; the built-in font lacks them, so HamOS draws them itself. The screen dims after a minute without key presses.
+The interface is in English or Turkish: the setup wizard asks on the first start (later: Settings, Language tr/en). HamOS starts on a home screen (clock, station, battery, WiFi, GPS; TAB for a map, your position and the latest messages); ENTER or `` ` `` opens the app menu, and after 30 s idle in the menu it goes back home. A WiFi app scans for networks and shows the address (`http://hamos.local`). Fn + `=` / `-` changes the volume and Fn + `]` / `[` the brightness on any screen (a level bar shows, the setting is saved; hold to keep changing); held arrow keys repeat. There is one volume for everything: beeps, sidetone and the audio sent to the radio. In the app menu TAB switches groups, typing searches by name and Fn+ENTER marks favourites. The status bar shows UTC time, unread mesh (`M3`) and APRS (`A1`) messages, GPS fix, WiFi and battery. Turkish letters (ç ğ ı İ ö ş ü) are shown everywhere; the built-in font lacks them, so HamOS draws them itself. The screen dims after a minute without key presses.
 
 ## SD card
 
@@ -83,7 +83,8 @@ Copy the contents of the `sdcard` folder to the root of a FAT32 microSD card (ab
 | `ENTER` | Open / edit / save / send |
 | `TAB` | Next field or page |
 | `` ` `` or Fn+`` ` `` (ESC) | Cancel / back to the app menu; in the menu: the home screen |
-| Ctrl + `;` `.` / Ctrl + `,` `/` | Brightness / volume, from any screen |
+| Fn + `=` / Fn + `-` | Volume up / down, from any screen (one volume for all sound, including the audio to the radio) |
+| Fn + `]` / Fn + `[` | Brightness up / down, from any screen |
 | Fn + arrows | On screens where `;` `.` `,` `/` are text (chat, PSK31): scroll or tune |
 | `-` / `=` | Zoom on the map |
 
@@ -128,6 +129,26 @@ The waterfall shows 300-2700 Hz. Fn+`,`/`/` tune by 10 Hz, Fn+`;`/`.` by 1 Hz, T
 
 HamOS speaks the Meshtastic radio protocol, so it talks to ordinary Meshtastic nodes and phones. Defaults match a factory-fresh node: `EU_868` (869.525 MHz), `LongFast`, the public key. Channel messages both ways, node names, positions, signal, hops, acknowledgements to you. Not implemented: relaying other nodes' packets (HamOS is `CLIENT_MUTE`), direct messages with the newer public-key encryption, telemetry. Airtime stays within the EU duty cycle. Position sharing is off by default and coarsened to about 3 km when on. Licence-free ISM band, not amateur radio.
 
+### Paddle and key
+
+A paddle (two contacts) or a straight key (one contact) on two free pins: in **Morse** it gives sidetone and the letters on screen (in the trainer it answers) and never transmits; in the **CW keyer**, and on every other page unless switched off, it keys the radio (Grove key line, or with CAT CW word by word). Whenever HamOS keys the radio a red **TX** shows in the status bar, on every page. Settings:
+
+| Setting | Values |
+|---|---|
+| `Paddle / key (0/1)` | 1 = on |
+| `Paddle iambic/simple/straight` | `iambic`: a held paddle repeats, squeezing alternates (mode B); `simple`: one dit or dah per press; `straight`: one contact, you time it (the decoder follows your speed) |
+| `Paddle dit (key) GPIO`, `Paddle dah GPIO` | `1` `2` (Grove G1/G2, default), or without the LoRa + GNSS cap the header pins `3` `4` `5` `6` `13` `15`. A straight key uses the dit pin. |
+| `Paddle contact gnd/3v3` | `gnd`: each contact closes to GND (internal pull-up); `3v3`: each contact closes to 3V3 (internal pull-down). No resistors needed. |
+| `Paddle swap dit/dah 0/1` | 1 swaps the two contacts (left-handed) |
+| `Paddle TX on all pages 0/1` | 1 (default): the paddle keys the radio from every page, so you can key while looking at other apps; 0: only in the CW keyer. Morse practice never transmits. |
+| `Morse practice WPM` | speed in Morse practice (also Fn+`;`/`.` there); the CW keyer keeps `CW speed WPM` |
+
+While you key, the dots and dashes of the letter show at once (the one sounding in red) and turn into the letter when it is complete.
+
+**TX display.** When the CW keyer sends a memory or typed text, a TX line shows the text with the letter going out highlighted and below it the dots and dashes, the one keyed now in red, then "Sent". So you can see the transmission even when the sidetone is off or the speaker is unplugged. Through the Grove key line it follows the key exactly; with CAT CW (CI-V, Kenwood, rigctld) the radio does the timing, so the display (marked `~`) is an estimate from `CW speed WPM` and runs ahead or behind if the radio's keyer is set to another speed.
+
+The pins the cap uses are refused while it is plugged in (the Morse screen says why), and the Grove pins while a radio cable, the key line or the weather sensor uses the Grove port. Never connect 5 V to a pin.
+
 ### Other
 
 - **Decoder**: CW with automatic speed and a noise gate; RTTY 45.45 baud, 170 Hz, `R` for reverse, ENTER for a CQ.
@@ -159,8 +180,15 @@ With "Meshtastic app BT" = 1 the official Meshtastic app (phone or PC) connects 
 
 ## Installing and updating
 
-- From a release: download `hamos-full.bin` from the [Releases](../../releases) page and write it at address `0x0`, e.g. with `esptool.py --chip esp32s3 write_flash 0x0 hamos-full.bin`, or from Chrome/Edge with a web flasher (ESP Web Tools, `tools/flasher/index.html`). `firmware.bin` is the same firmware for updates (Update app, web interface, M5Burner).
-- GitHub Actions (`.github/workflows/build.yml`) can build the firmware, run the tests, and for a tag `vX.Y.Z` publish a release; `pages.yml` puts the installer on GitHub Pages. The version is in `src/core/Version.h`.
+Each [release](../../releases) has two files:
+
+| File | Use |
+|---|---|
+| `hamOS_0x0.bin` | The complete image for a first install: write it at address `0x0`, e.g. `esptool.py --chip esp32s3 write_flash 0x0 hamOS_0x0.bin` (if no port shows up, hold G0 while plugging in), with a web flasher in Chrome/Edge (ESP Web Tools, `tools/flasher/index.html`) or M5Burner. |
+| `hamOS_<version>.bin` (e.g. `hamOS_1_1.bin`) | The app only, for updates: the Update app on the device finds it by itself; also for the web interface, the PC panel and an SD card launcher (install from SD). |
+
+- Making the release files: `pio run -e cardputer-adv && sh tools/release.sh` writes both to `dist/v<version>/`. The version is in `src/core/Version.h`; the tag is `v` + that version (`v1.1.0`).
+- GitHub Actions (`.github/workflows/build.yml`) can do the same for a tag `vX.Y.Z` (build, tests, release); `pages.yml` puts the installer on GitHub Pages.
 - On the device: Update app. For a private repository set an "Update token" (a GitHub token that may read the repository).
 
 ## Logging programs on the PC

@@ -8,6 +8,7 @@
 #include <HTTPClient.h>
 #include "core/Log.h"
 #include "core/Keyer.h"
+#include "core/Lora.h"
 #include "core/Tracker.h"
 #include "core/Mailbox.h"
 #include "core/Watch.h"
@@ -279,6 +280,24 @@ int main() {
     back();                                         // ` in the menu: home screen again
     EXPECT(current == &homeApp);
     enter();
+
+    // Volume (Fn + = / -) and brightness (Fn + ] / [) from any screen; without Fn the keys stay the app's.
+    {
+        auto fnKey = [](char c) { Keys s; s.fn = true; s.word.push_back(c); press(s); };
+        int vol = atoi(config::get("volume", "160").c_str()), light = (int)brightness();
+        fnKey('=');
+        EXPECT(atoi(config::get("volume").c_str()) == vol + 16 && M5Cardputer.Speaker.volume == vol + 16);
+        fnKey('-');
+        fnKey('-');
+        EXPECT(atoi(config::get("volume").c_str()) == vol - 16);
+        fnKey(']');
+        EXPECT((int)brightness() == (light + 20 > 255 ? 255 : light + 20));
+        fnKey('[');
+        EXPECT((int)brightness() == light);
+        fnKey('=');
+        EXPECT(current == &launcher && atoi(config::get("volume").c_str()) == vol);
+        run(2500);                                  // the level shows, then it is saved
+    }
 
     // Keyboard handling, in the launcher: Fn+arrow keys move the selection, and
     // fast typing where keys overlap must not repeat characters.
@@ -800,6 +819,7 @@ int main() {
     Serial2.tx.clear();
     key('2');                                  // memory 2 through the radio's keyer (CI-V 17)
     EXPECT(Serial2.tx.find("\x17" "DL1ABC DE TA3BLD UR 5NN 5NN BK") != std::string::npos);
+    EXPECT(keyer::txView().active && keyer::txView().estimated);   // the radio times it: estimated TX display
     shot("cw-keyer");
     // Grove key line, no radio: the keyer times the CW itself
     config::set("rig_type", "");
@@ -807,8 +827,14 @@ int main() {
     settings::apply(settings::RIG);
     int tones = M5Cardputer.Speaker.tones, keyedDown = 0;
     key('1');
+    EXPECT(keyer::txView().active && !keyer::txView().estimated);
     for (int i = 0; i < 400; i++) { run(5); keyedDown += sim_pin_out[cap::GROVE_1]; }
     EXPECT(keyedDown > 20 && M5Cardputer.Speaker.tones > tones + 3);
+    {
+        keyer::TxView v = keyer::txView();         // follows the key line
+        EXPECT(v.active && v.letter > 0 && v.letter < v.text.size() && v.down == (sim_pin_out[cap::GROVE_1] == 1));
+    }
+    shot("cw-keyer-tx");
     back(); back();
     // Paddle: dit held for three dits -> "S"
     config::set("grove_io", "paddle");
@@ -1286,11 +1312,11 @@ int main() {
         char hex[65];
         for (int i = 0; i < 32; i++) snprintf(hex + i * 2, 3, "%02x", sum[i]);
         std::string rel = std::string(R"({"tag_name":"v9.1.0","name":"HamOS 9.1","body":"## What's new\r\n* POTA and SOTA spots\r\n* Emergency mode\r\n* Turkish menus\r\n\r\n**Full Changelog**: v0.8.0...v9.1.0",)") +
-                          R"("assets":[{"url":"https://api.github.com/repos/TA3BLD/cardputer-hamos/releases/assets/7","name":"firmware.bin","size":)" +
+                          R"("assets":[{"url":"https://api.github.com/repos/TA3BLD/cardputer-hamos/releases/assets/7","name":"hamOS_0x0.bin","size":9},{"url":"https://api.github.com/repos/TA3BLD/cardputer-hamos/releases/assets/8","name":"hamOS_9_1.bin","size":)" +
                           std::to_string(fw.size()) + R"(,"digest":"sha256:)" + hex +
-                          R"(","browser_download_url":"https://github.com/TA3BLD/cardputer-hamos/releases/download/v9.1.0/firmware.bin"}]})";
+                          R"(","browser_download_url":"https://github.com/TA3BLD/cardputer-hamos/releases/download/v9.1.0/hamOS_9_1.bin"}]})";
         sim_http["api.github.com/repos/TA3BLD/cardputer-hamos/releases/latest"] = rel;
-        sim_http["releases/download/v9.1.0/firmware.bin"] = "REDIRECT https://release-assets.githubusercontent.com/fw?sig=1";
+        sim_http["releases/download/v9.1.0/hamOS_9_1.bin"] = "REDIRECT https://release-assets.githubusercontent.com/fw?sig=1";
         sim_http["release-assets.githubusercontent.com/fw"] = fw;
 
         usb::handle("{\"id\":1,\"cmd\":\"app.open\",\"name\":\"Update\"}");
@@ -1473,6 +1499,92 @@ int main() {
         tab();
         EXPECT(!audio::playing());
         back();
+    }
+
+    // ---- Paddle / key in Morse practice: pins, contact direction, modes ----
+    {
+        auto open = [](const char* name) {
+            usb::handle(std::string("{\"id\":1,\"cmd\":\"app.open\",\"name\":\"") + name + "\"}");
+            run(200);
+        };
+        config::set("paddle_on", "1");
+        config::set("paddle_dit", "3");
+        config::set("paddle_dah", "4");
+        settings::apply(settings::RIG);
+        EXPECT(!keyer::paddle() && keyer::paddleError() && lora::ready());   // the cap is there: its pins are not free
+        config::set("paddle_dit", "7");
+        settings::apply(settings::RIG);
+        EXPECT(keyer::paddleError());                                        // not a pin the paddle may use
+        open("Morse");
+        EXPECT(std::string(current->name()) == "Morse");
+        // Grove pins, contacts to 3V3 (pulled down: LOW = not pressed), iambic
+        sim_pin_in[cap::GROVE_1] = sim_pin_in[cap::GROVE_2] = 0;
+        config::set("paddle_dit", "1");
+        config::set("paddle_dah", "2");
+        config::set("paddle_pull", "3v3");
+        settings::apply(settings::RIG);
+        EXPECT(keyer::paddle() && keyer::paddleInfo() == "G1/G2 3V3 iambic");
+        keyer::clearPaddleText();
+        run(300);
+        sim_pin_in[cap::GROVE_2] = 1;           // dah, 18 WPM: 198 ms
+        run(150);
+        {
+            bool down = false;
+            EXPECT(keyer::paddlePattern(&down) == "-" && down);            // shown while it is keyed
+        }
+        sim_pin_in[cap::GROVE_2] = 0;
+        run(900);
+        EXPECT(keyer::paddleText() == "T ");
+        shot("morse-paddle");
+        // Straight key on G1: K = -.- with the operator's own timing
+        config::set("paddle_mode", "straight");
+        settings::apply(settings::RIG);
+        EXPECT(keyer::paddle() && keyer::paddleInfo() == "G1 3V3 straight key");
+        keyer::clearPaddleText();
+        for (int ms : {200, 70, 200}) {
+            sim_pin_in[cap::GROVE_1] = 1;
+            run(ms);
+            sim_pin_in[cap::GROVE_1] = 0;
+            run(70);
+        }
+        run(900);
+        EXPECT(keyer::paddleText() == "K ");
+        int tones = M5Cardputer.Speaker.tones;
+        EXPECT(tones > 0 && sim_pin_out[cap::GROVE_1] == 0 && !keyer::onAir());   // sidetone only, the radio is not keyed
+        back();
+        // Outside Morse practice the paddle keys the radio: here rigctld, CAT CW word by word, TX in the status bar
+        config::set("paddle_mode", "iambic");
+        config::set("rig_type", "rigctld");
+        settings::apply(settings::RIG);
+        run(3500);
+        EXPECT(rig::connected() && keyer::paddle());
+        auto dah = [] {
+            sim_pin_in[cap::GROVE_2] = 1;
+            run(150);
+            sim_pin_in[cap::GROVE_2] = 0;
+            run(900);
+        };
+        sim_net_sent[kRigHost].clear();
+        dah();
+        EXPECT(sim_net_sent[kRigHost].find("b T ") != std::string::npos && keyer::onAir());
+        run(100);
+        printf("S %s\n", "paddle-tx-status");     // while TX still shows
+        // "Paddle TX on all pages" = 0: outside the CW keyer only sidetone
+        config::set("paddle_tx_all", "0");
+        settings::apply(settings::RIG);
+        run(3000);
+        sim_net_sent[kRigHost].clear();
+        dah();
+        EXPECT(sim_net_sent[kRigHost].find("b ") == std::string::npos && !keyer::onAir());
+        config::set("paddle_tx_all", "1");
+        config::set("rig_type", "");
+        settings::apply(settings::RIG);
+        config::set("paddle_on", "0");
+        config::set("paddle_mode", "iambic");
+        config::set("paddle_pull", "gnd");
+        settings::apply(settings::RIG);
+        sim_pin_in[cap::GROVE_1] = sim_pin_in[cap::GROVE_2] = 1;
+        EXPECT(!keyer::paddle() && !keyer::paddleError());
     }
 
     // ---- Alerts: watch list, band openings; repeater and satellite to the radio; map overlays ----

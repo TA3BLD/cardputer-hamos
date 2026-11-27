@@ -7,6 +7,7 @@
 #include "Ble.h"
 #include "Cap.h"
 #include "Config.h"
+#include "Keyer.h"
 #include "Lang.h"
 #include "Net.h"
 #include "lib/Cat.h"
@@ -185,10 +186,8 @@ void begin() {
         pinMode(cap::GROVE_2, OUTPUT);              // PTT
         digitalWrite(cap::GROVE_1, LOW);
         digitalWrite(cap::GROVE_2, LOW);
-    } else if (config::get("grove_io") == "paddle") {
-        pinMode(cap::GROVE_1, INPUT_PULLUP);        // dit
-        pinMode(cap::GROVE_2, INPUT_PULLUP);        // dah
     }
+    keyer::setupPaddle();                           // after the Grove use is known
     if (type == IC705) ble::ic705Start();
     lastAnswerMs = 0;
     lastPollMs = 0;

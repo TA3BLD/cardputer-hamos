@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include "Cap.h"
 #include "Config.h"
+#include "Keyer.h"
 
 namespace lora {
 
@@ -20,6 +21,10 @@ static void IRAM_ATTR onDio1() { irq = true; }
 
 bool begin(const Settings& s) {
     isReady = transmitting = false;
+    if (keyer::paddleUsesCapPins()) {   // no cap: the paddle has its pins
+        lastError = "LoRa pins used by the paddle";
+        return false;
+    }
     if (!radio) {
         module = new Module(cap::LORA_CS, cap::LORA_DIO1, cap::LORA_RST, cap::LORA_BUSY, SPI);
         radio = new SX1262(module);

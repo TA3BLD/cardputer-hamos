@@ -55,7 +55,7 @@ public:
     static const std::vector<const char*>& keys() {
         static const std::vector<const char*> k = {"brightness", "dim_after", "lora_mode", "mesh_on", "mesh_ble", "aprs_on",
                                                    "aprs_beacon", "lora_aprs_beacon", "lora_digi", "rig_type", "rig_host",
-                                                   "grove_io", "pota_ref", "sota_ref", "contest", "wx_beacon", "psk_report",
+                                                   "grove_io", "paddle_on", "pota_ref", "sota_ref", "contest", "wx_beacon", "psk_report",
                                                    "volume", "update_check"};
         return k;
     }

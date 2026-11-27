@@ -1,6 +1,7 @@
 // Morse code table and timing. Pure C++, host-testable.
 #pragma once
 #include <cctype>
+#include <cstdint>
 #include <string>
 
 namespace morse {
@@ -41,5 +42,37 @@ inline char decode(const std::string& pattern) {
 
 // Length of one dot in milliseconds (PARIS standard).
 inline int dotMs(int wpm) { return 1200 / (wpm < 5 ? 5 : wpm); }
+
+// Where sending `text` is after `elapsedMs`, with the usual timing (element,
+// one dot between elements, three between letters, seven between words):
+// the letter (index into text), the element of that letter (-1 in the gap
+// before it) and whether the key is down. False once it has all been sent.
+inline bool timeline(const std::string& text, uint32_t dotMs, uint32_t elapsedMs, size_t& letter, int& element, bool& down) {
+    uint32_t t = 0;
+    for (size_t i = 0; i < text.size(); i++) {
+        if (text[i] == ' ') {
+            if (elapsedMs < t + 4 * dotMs) {       // 3 after the letter + 4 = 7
+                letter = i;
+                element = -1;
+                down = false;
+                return true;
+            }
+            t += 4 * dotMs;
+            continue;
+        }
+        const char* p = encode(text[i]);
+        for (int e = 0; p[e]; e++) {
+            uint32_t on = (p[e] == '-' ? 3 : 1) * dotMs, off = p[e + 1] ? dotMs : 3 * dotMs;
+            if (elapsedMs < t + on + off) {
+                letter = i;
+                element = e;
+                down = elapsedMs < t + on;
+                return true;
+            }
+            t += on + off;
+        }
+    }
+    return false;
+}
 
 }  // namespace morse

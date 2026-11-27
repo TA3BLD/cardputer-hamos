@@ -84,12 +84,100 @@ int main() {
         // squeeze, dah first, let go during the second dah: mode B adds the dit -> dah dit dah dit = C
         run(10, false, true);
         run(380, true, true);
+        CHECK(k.pattern().size() >= 2 && k.pattern()[0] == '-');     // what is being keyed, before the letter is done
         run(500, false, false);
-        CHECK(k.take().substr(0, 1) == "C");
+        CHECK(k.take().substr(0, 1) == "C" && k.pattern().empty());
         // A word gap makes a space
         run(30, true, false);
         run(700, false, false);
         CHECK(k.text() == "E ");
+    }
+
+    // Simple paddle: one element per press, holding does not repeat
+    {
+        morse::Iambic k;
+        k.setWpm(20);
+        k.setSimple(true);
+        uint32_t t = 0;
+        auto run = [&](uint32_t ms, bool dit, bool dah) {
+            for (uint32_t end = t + ms; t < end; t += 2) k.update(t, dit, dah);
+        };
+        run(400, true, false);                  // held 400 ms: still a single dit
+        run(400, false, false);
+        CHECK(k.text() == "E ");
+        k.take();
+        run(40, false, true);                   // dah, dit, dit, dit: B
+        run(160, false, false);
+        for (int i = 0; i < 3; i++) {
+            run(30, true, false);
+            run(60, false, false);
+        }
+        run(500, false, false);
+        CHECK(k.take() == "B ");
+    }
+
+    // Straight key: the operator's timing, and it follows a slower speed
+    {
+        morse::StraightKey k;
+        k.setWpm(20);                           // starts at a 60 ms dot
+        uint32_t t = 0;
+        auto run = [&](uint32_t ms, bool down) {
+            for (uint32_t end = t + ms; t < end; t += 2) k.update(t, down);
+        };
+        auto send = [&](const char* pattern, uint32_t dot) {
+            for (const char* p = pattern; *p; p++) {
+                run(*p == '-' ? 3 * dot : dot, true);
+                run(dot, false);
+            }
+            run(3 * dot, false);
+        };
+        send("-.-.", 60);                       // C at 20 WPM
+        send("--.-", 60);                       // Q
+        run(600, false);
+        CHECK(k.take() == "CQ ");
+        for (int i = 0; i < 4; i++) send("...", 100);   // 12 WPM: S S S S, the dot follows
+        run(1000, false);
+        CHECK(k.take() == "SSSS " && k.dotMs() > 85);
+        run(100, true);                         // held: a dot that becomes a dash
+        CHECK(k.live(t) == "." && k.sounding());
+        run(150, true);
+        CHECK(k.live(t) == "-");
+        run(1000, false);
+        CHECK(k.take() == "T " && k.live(t).empty() && !k.sounding());
+        run(5, true);                           // contact bounce is ignored
+        run(400, false);
+        CHECK(k.text().empty());
+    }
+
+    // The word space also comes when the letters were already taken (as the keyer does every tick)
+    {
+        morse::Iambic k;
+        k.setWpm(20);
+        uint32_t t = 0;
+        std::string got;
+        auto run = [&](uint32_t ms, bool dit, bool dah) {
+            for (uint32_t end = t + ms; t < end; t += 2) {
+                k.update(t, dit, dah);
+                got += k.take();
+            }
+        };
+        run(30, true, false);
+        run(700, false, false);
+        run(30, false, true);
+        run(700, false, false);
+        CHECK(got == "E T ");
+    }
+
+    // Where a text is while it is sent: "E T" at a 100 ms dot
+    {
+        size_t l = 9;
+        int e = 9;
+        bool d = false;
+        CHECK(morse::timeline("E T", 100, 50, l, e, d) && l == 0 && e == 0 && d);        // the E dot
+        CHECK(morse::timeline("E T", 100, 150, l, e, d) && l == 0 && e == 0 && !d);      // gap after it
+        CHECK(morse::timeline("E T", 100, 450, l, e, d) && l == 1 && e == -1 && !d);     // word space
+        CHECK(morse::timeline("E T", 100, 850, l, e, d) && l == 2 && e == 0 && d);       // the T dah
+        CHECK(!morse::timeline("E T", 100, 1500, l, e, d));                              // all sent
     }
 
     if (failures) { printf("%d failed\n", failures); return 1; }
